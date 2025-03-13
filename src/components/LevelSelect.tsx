@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Star, Lock } from 'lucide-react';
-import { GameLevel, DifficultyLevel } from '../hooks/useGameState';
+import { GameLevel } from '../hooks/useGameState';
+import { DifficultyLevel } from '../utils/gameUtils';
 
 interface LevelSelectProps {
   levels: GameLevel[];

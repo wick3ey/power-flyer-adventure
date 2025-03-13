@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { PowerUp, PowerUpType } from '../hooks/useGameState';
+import { PowerUp } from '../hooks/useGameState';
+import { PowerUpType } from '../utils/gameUtils';
 import { Shield, Zap, Magnet, Clock } from 'lucide-react';
 
 interface PowerUpProps {

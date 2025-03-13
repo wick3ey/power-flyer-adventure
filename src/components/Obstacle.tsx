@@ -1,6 +1,6 @@
-
 import React from 'react';
-import { Obstacle, ObstacleType } from '../hooks/useGameState';
+import { Obstacle } from '../hooks/useGameState';
+import { ObstacleType } from '../utils/gameUtils';
 
 interface ObstacleProps {
   obstacle: Obstacle;
