@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
 import { checkCollision, clamp, lerp, ObstacleType } from '../utils/gameUtils';
@@ -13,13 +14,13 @@ interface PhysicsConfig {
 }
 
 const defaultConfig: PhysicsConfig = {
-  gravity: 0.7,
-  jumpForce: -12,
-  maxVelocityY: 18,
+  gravity: 0.6,  // Reduced slightly for better control
+  jumpForce: -10,  // Less powerful jump for more control
+  maxVelocityY: 15,
   groundY: 550,
   worldWidth: 800,
   worldHeight: 600,
-  gameSpeed: 2.5,
+  gameSpeed: 2.2,  // Slightly slower game speed for better playability
 };
 
 const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
@@ -42,21 +43,28 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
       ...character,
       y,
       velocityY,
-      isJumping: true,
+      isJumping: velocityY < 0, // Only consider jumping if moving upward
     };
   }, [physicsConfig]);
 
   const jump = useCallback((character: Character): Character => {
+    // Add a small randomness to make jumps feel more natural
+    const jumpVariance = Math.random() * 0.4 - 0.2; // Between -0.2 and 0.2
     return {
       ...character,
-      velocityY: physicsConfig.jumpForce,
+      velocityY: physicsConfig.jumpForce + jumpVariance,
       isJumping: true,
     };
   }, [physicsConfig.jumpForce]);
 
   const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number) => {
-    const gapSize = 180;
-    const gapPosition = Math.random() * (worldHeight - gapSize - 250) + 120;
+    // Significantly larger gap for easier navigation
+    const gapSize = 220;
+    // Make sure gap is within a reasonable part of the screen
+    const minGapPosition = 120; // Keep away from the very top
+    const maxGapPosition = worldHeight - gapSize - 120; // Keep away from the bottom
+    const gapPosition = Math.random() * (maxGapPosition - minGapPosition) + minGapPosition;
+    
     const topPipe: Obstacle = {
       id: `pipe-top-${Date.now()}`,
       type: ObstacleType.STATIC,
@@ -107,7 +115,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     obstacle: Obstacle,
     passedObstacleIds: string[]
   ): boolean => {
-    if (obstacle.type === 'static' && obstacle.y === 0) {
+    if (obstacle.type === ObstacleType.STATIC && obstacle.y === 0) {
       const characterRightEdge = character.x + character.width;
       const obstacleMiddleX = obstacle.x + (obstacle.width / 2);
       if (characterRightEdge > obstacleMiddleX && !passedObstacleIds.includes(obstacle.id)) {

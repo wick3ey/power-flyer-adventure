@@ -295,16 +295,21 @@ const useGameState = () => {
     toast.success("Level completed!");
   }, [gameState.level, gameState.levels, gameState.score]);
 
-  // Jump action - simplified for Flappy Bird mechanics
+  // Jump action - improved for Flappy Bird mechanics
   const jump = useCallback(() => {
-    setGameState(prev => ({
-      ...prev,
-      character: {
-        ...prev.character,
-        velocityY: -10, // Strong upward velocity
-        isJumping: true
-      }
-    }));
+    setGameState(prev => {
+      // Don't allow jumps if game is paused or over
+      if (!prev.isPlaying || prev.isPaused || prev.isGameOver) return prev;
+      
+      return {
+        ...prev,
+        character: {
+          ...prev.character,
+          velocityY: -10, // Strong upward velocity
+          isJumping: true
+        }
+      };
+    });
   }, []);
 
   // Add obstacles to the game
@@ -350,7 +355,7 @@ const useGameState = () => {
       if (updatedCharacter.y > groundLevel) {
         // Only trigger game over if the bird is actually touching the ground
         // and has a significant downward velocity (falling)
-        if (updatedCharacter.velocityY > 3) { // Bird is falling fast
+        if (updatedCharacter.velocityY > 5) { // Bird is falling fast - increased threshold for better gameplay
           toast.error("Game over! You hit the ground!");
           return {
             ...prev,
@@ -365,19 +370,20 @@ const useGameState = () => {
         updatedCharacter.isJumping = false;
       }
 
-      // Check for collisions with obstacles - Only with the visible part of the pipes
+      // Check for collisions with obstacles - Even more forgiving collision detection
       const isColliding = prev.obstacles.some(obstacle => {
-        // Use more precise collision detection
-        const characterRight = updatedCharacter.x + updatedCharacter.width * 0.8; // 80% of width
-        const characterLeft = updatedCharacter.x + updatedCharacter.width * 0.2; // 20% of width
-        const characterTop = updatedCharacter.y + updatedCharacter.height * 0.2; // 20% of height
-        const characterBottom = updatedCharacter.y + updatedCharacter.height * 0.8; // 80% of height
+        // Use more precise collision detection with a smaller hitbox
+        const characterRight = updatedCharacter.x + updatedCharacter.width * 0.7; // 70% of width
+        const characterLeft = updatedCharacter.x + updatedCharacter.width * 0.3; // 30% of width
+        const characterTop = updatedCharacter.y + updatedCharacter.height * 0.3; // 30% of height
+        const characterBottom = updatedCharacter.y + updatedCharacter.height * 0.7; // 70% of height
         
+        // More generous collision detection
         if (
-          characterRight > obstacle.x + obstacle.width * 0.1 &&
-          characterLeft < obstacle.x + obstacle.width * 0.9 &&
-          characterTop < obstacle.y + obstacle.height * 0.9 &&
-          characterBottom > obstacle.y + obstacle.height * 0.1
+          characterRight > obstacle.x + obstacle.width * 0.15 &&
+          characterLeft < obstacle.x + obstacle.width * 0.85 &&
+          characterTop < obstacle.y + obstacle.height * 0.85 &&
+          characterBottom > obstacle.y + obstacle.height * 0.15
         ) {
           return true;
         }
@@ -409,6 +415,28 @@ const useGameState = () => {
           };
         }
       }
+
+      // Check for score opportunities
+      let scoreAdded = 0;
+      const passedObstacleIds = [...prev.obstacles]
+        .filter(o => o.type === ObstacleType.STATIC && o.y === 0) // Only top pipes
+        .filter(o => {
+          // Check if middle of obstacle has passed the character
+          const middleOfObstacle = o.x + o.width / 2;
+          const characterRightEdge = updatedCharacter.x + updatedCharacter.width;
+          
+          // If character just passed the middle of the obstacle, it's a score
+          const justPassed = characterRightEdge > middleOfObstacle && 
+                            characterRightEdge - prev.character.velocityX <= middleOfObstacle;
+          
+          if (justPassed) {
+            scoreAdded += 1;
+            // Maybe show a little toast or animation
+            return true;
+          }
+          return false;
+        })
+        .map(o => o.id);
 
       // Check for collisions with power-ups and collectibles
       const { powerUps, activePowerUps } = prev.powerUps.reduce(
@@ -477,9 +505,9 @@ const useGameState = () => {
         ...prev,
         character: updatedCharacter,
         obstacles,
+        score: prev.score + scoreAdded,
         powerUps,
         collectibles,
-        score,
         activePowerUps,
       };
     });
