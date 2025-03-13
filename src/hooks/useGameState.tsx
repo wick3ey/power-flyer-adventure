@@ -295,36 +295,57 @@ const useGameState = () => {
     toast.success("Level completed!");
   }, [gameState.level, gameState.levels, gameState.score]);
 
-  // Jump action
+  // Jump action - simplified for Flappy Bird mechanics
   const jump = useCallback(() => {
-    if (gameState.character.isJumping) return;
-    
     setGameState(prev => ({
       ...prev,
       character: {
         ...prev.character,
-        velocityY: -10,
+        velocityY: -10, // Strong upward velocity
         isJumping: true
       }
     }));
-  }, [gameState.character.isJumping]);
+  }, []);
+
+  // Add obstacles to the game
+  const addObstacles = useCallback((obstacles: Obstacle[]) => {
+    setGameState(prev => ({
+      ...prev,
+      obstacles: [...prev.obstacles, ...obstacles]
+    }));
+  }, []);
+
+  // Add to score
+  const addScore = useCallback((points: number) => {
+    setGameState(prev => ({
+      ...prev,
+      score: prev.score + points
+    }));
+    
+    // Optional: play a sound or show a toast for feedback
+    // toast.success(`+${points} points!`);
+  }, []);
 
   // Update game state - called on each animation frame
   const updateGameState = useCallback(() => {
     if (!gameState.isPlaying || gameState.isPaused) return;
 
     setGameState(prev => {
-      // Update character position
+      // Update character position with gravity
       const updatedCharacter = {
         ...prev.character,
         velocityY: prev.character.velocityY + prev.gravity,
         y: prev.character.y + prev.character.velocityY,
-        isJumping: prev.character.y + prev.character.velocityY < 350 // Ground level
       };
 
       // Keep character within bounds
-      if (updatedCharacter.y > 350 - updatedCharacter.height) {
-        updatedCharacter.y = 350 - updatedCharacter.height;
+      if (updatedCharacter.y < 0) {
+        updatedCharacter.y = 0;
+        updatedCharacter.velocityY = 0;
+      }
+      
+      if (updatedCharacter.y > 480 - updatedCharacter.height) {
+        updatedCharacter.y = 480 - updatedCharacter.height;
         updatedCharacter.velocityY = 0;
         updatedCharacter.isJumping = false;
       }
@@ -368,7 +389,17 @@ const useGameState = () => {
         }
       }
 
-      // Check for collisions with power-ups
+      // Check for ground collision (game over in Flappy Bird)
+      if (updatedCharacter.y >= 480 - updatedCharacter.height) {
+        toast.error("Game over!");
+        return {
+          ...prev,
+          isPlaying: false,
+          isGameOver: true
+        };
+      }
+
+      // Check for collisions with power-ups and collectibles
       const { powerUps, activePowerUps } = prev.powerUps.reduce(
         (acc, powerUp) => {
           if (
@@ -405,9 +436,9 @@ const useGameState = () => {
           if (
             !collectible.isCollected &&
             updatedCharacter.x < collectible.x + collectible.width &&
-            updatedCharacter.x + collectible.width > collectible.x &&
+            updatedCharacter.x + updatedCharacter.width > collectible.x &&
             updatedCharacter.y < collectible.y + collectible.height &&
-            updatedCharacter.y + collectible.height > collectible.y
+            updatedCharacter.y + updatedCharacter.height > collectible.y
           ) {
             // Collect item
             return {
@@ -423,14 +454,13 @@ const useGameState = () => {
         { collectibles: [] as Collectible[], score: prev.score }
       );
 
-      // Move obstacles
-      const obstacles = prev.obstacles.map(obstacle => ({
-        ...obstacle,
-        x: obstacle.x - obstacle.speed * prev.gameSpeed
-      })).filter(obstacle => obstacle.x + obstacle.width > 0);
-
-      // Check if level completed (simplified check - in a real game, we'd have more conditions)
-      const isLevelCompleted = score >= (prev.activeLevel?.targetScore || 0);
+      // Move obstacles and remove ones that have gone off screen
+      const obstacles = prev.obstacles
+        .map(obstacle => ({
+          ...obstacle,
+          x: obstacle.x - obstacle.speed
+        }))
+        .filter(obstacle => obstacle.x + obstacle.width > -100); // Keep obstacles slightly beyond the left edge
 
       return {
         ...prev,
@@ -440,7 +470,6 @@ const useGameState = () => {
         collectibles,
         score,
         activePowerUps,
-        isLevelCompleted
       };
     });
   }, [gameState.isPlaying, gameState.isPaused]);
@@ -465,7 +494,9 @@ const useGameState = () => {
     completeLevel,
     jump,
     updateGameState,
-    resetGame
+    resetGame,
+    addObstacles,
+    addScore
   };
 };
 

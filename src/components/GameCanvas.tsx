@@ -13,21 +13,15 @@ interface GameCanvasProps {
 const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   
-  // Set up animation frame for game loop
-  useEffect(() => {
-    if (!gameState.isPlaying || gameState.isPaused) return;
-    
-    // Game logic would be handled in the useGameState hook
-    // This component just renders the current state
-  }, [gameState.isPlaying, gameState.isPaused]);
-
   return (
     <div 
       ref={canvasRef}
       className="relative w-full h-full overflow-hidden"
     >
+      {/* Flappy Bird style gradient sky background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-sky-300 to-sky-500 z-0"></div>
+      
       {/* Parallax background layers */}
-      <div className="absolute inset-0 bg-gradient-to-b from-blue-300 to-blue-500 z-0"></div>
       
       {/* Clouds - Far background */}
       <motion.div 
@@ -116,6 +110,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
         character={gameState.character}
         activePowerUps={gameState.activePowerUps}
       />
+      
+      {/* Score counter */}
+      {gameState.isPlaying && (
+        <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="text-6xl font-bold text-white text-shadow-lg">{gameState.score}</div>
+        </div>
+      )}
     </div>
   );
 };

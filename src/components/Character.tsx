@@ -34,7 +34,11 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
 
   // Bird flapping animation variants
   const flapVariants = {
-    idle: { rotate: 0, y: [0, -3, 0], transition: { y: { repeat: Infinity, duration: 1.5 } } },
+    idle: { 
+      rotate: 0, 
+      y: [0, -3, 0], 
+      transition: { y: { repeat: Infinity, duration: 1.5 } } 
+    },
     flap: { 
       rotate: [-5, 15, -5], 
       y: [-8, -15, -8],
@@ -50,6 +54,11 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
     }
   };
 
+  // Calculate rotation based on velocity for realistic flight
+  const rotation = character.velocityY < 0 
+    ? Math.max(-30, character.velocityY * 2) // Rotate up when rising (limited to -30deg)
+    : Math.min(90, character.velocityY * 3);  // Rotate down when falling (up to 90deg)
+
   return (
     <motion.div 
       className="absolute z-10"
@@ -58,6 +67,8 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
         top: character.y,
         width: character.width,
         height: character.height,
+        transform: `rotate(${rotation}deg)`,
+        transition: 'transform 0.1s ease-out',
       }}
       animate={animationState}
       variants={flapVariants}

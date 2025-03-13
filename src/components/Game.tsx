@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -13,7 +12,7 @@ import GameControls from './GameControls';
 import GameMenu from './GameMenu';
 import LevelSelect from './LevelSelect';
 
-import { PowerUpType, ObstacleType, generateId } from '../utils/gameUtils';
+import { generateId } from '../utils/gameUtils';
 
 const Game = () => {
   // Game state and controls
@@ -26,7 +25,9 @@ const Game = () => {
     completeLevel,
     jump,
     updateGameState,
-    resetGame
+    resetGame,
+    addScore,
+    addObstacles
   } = useGameState();
   
   // Game physics
@@ -35,11 +36,15 @@ const Game = () => {
   // Animation frame ref
   const animationFrameRef = useRef<number>();
   
+  // Track passed obstacles to avoid double counting scores
+  const [passedObstacleIds, setPassedObstacleIds] = useState<string[]>([]);
+  
+  // Timer for spawning obstacles
+  const [lastObstacleTime, setLastObstacleTime] = useState(0);
+  
   // UI state
   const [showMenu, setShowMenu] = useState(true);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   
   // Handle keyboard and touch controls
   const { isMobile } = useGameControls({
@@ -71,73 +76,43 @@ const Game = () => {
       return;
     }
     
-    // Function to generate random obstacles
-    const generateObstacles = () => {
-      if (Math.random() < 0.02) { // 2% chance each frame
-        const obstacleTypes = [
-          ObstacleType.STATIC,
-          ObstacleType.MOVING,
-          ObstacleType.BREAKABLE,
-          ObstacleType.ROTATING
-        ];
-        
-        const randomType = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
-        
-        const obstacle = {
-          id: generateId(),
-          type: randomType,
-          x: window.innerWidth,
-          y: Math.random() * 300 + 50, // Random position between 50 and 350
-          width: 50,
-          height: 50,
-          speed: 2 + Math.random() * 3, // Random speed between 2 and 5
-          rotation: randomType === ObstacleType.ROTATING ? 0 : undefined,
-          health: randomType === ObstacleType.BREAKABLE ? 3 : undefined
-        };
-        
-        const newObstacles = [...gameState.obstacles, obstacle];
-        
-        // Update game state with new obstacle
-        // This is a simplified approach - in a real game we'd have more sophisticated obstacle patterns
-        updateGameState();
+    // Function to generate Flappy Bird style pipe obstacles
+    const generateObstacles = (timestamp: number) => {
+      // Generate new obstacles every 2 seconds
+      if (timestamp - lastObstacleTime > 2000) {
+        const newObstacles = physics.generateFlappyObstacles(window.innerWidth, window.innerHeight);
+        addObstacles(newObstacles);
+        setLastObstacleTime(timestamp);
       }
     };
     
-    // Function to generate random power-ups
-    const generatePowerUps = () => {
-      if (Math.random() < 0.005) { // 0.5% chance each frame
-        const powerUpTypes = [
-          PowerUpType.SHIELD,
-          PowerUpType.SPEED,
-          PowerUpType.MAGNET,
-          PowerUpType.SLOW_TIME
-        ];
-        
-        const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
-        
-        const powerUp = {
-          id: generateId(),
-          type: randomType,
-          x: window.innerWidth,
-          y: Math.random() * 250 + 50, // Random position between 50 and 300
-          width: 40,
-          height: 40,
-          isCollected: false,
-          duration: 5000 // 5 seconds
-        };
-        
-        const newPowerUps = [...gameState.powerUps, powerUp];
-        
-        // Update game state with new power-up
-        updateGameState();
+    // Check if obstacles have been passed for scoring
+    const checkPassedObstacles = () => {
+      const newPassedIds: string[] = [...passedObstacleIds];
+      let scoreAdded = false;
+      
+      gameState.obstacles.forEach(obstacle => {
+        if (physics.checkObstaclePassed(gameState.character, obstacle, passedObstacleIds)) {
+          newPassedIds.push(obstacle.id);
+          if (!scoreAdded) {
+            addScore(1);
+            scoreAdded = true; // Only add score once per pair of pipes
+          }
+        }
+      });
+      
+      if (newPassedIds.length !== passedObstacleIds.length) {
+        setPassedObstacleIds(newPassedIds);
       }
     };
     
     // Game loop function
-    const gameLoop = () => {
-      // Generate obstacles and power-ups
-      generateObstacles();
-      generatePowerUps();
+    const gameLoop = (timestamp: number) => {
+      // Generate obstacles 
+      generateObstacles(timestamp);
+      
+      // Check for scoring
+      checkPassedObstacles();
       
       // Update game state (physics, collisions, etc.)
       updateGameState();
@@ -155,7 +130,26 @@ const Game = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [gameState.isPlaying, gameState.isPaused, updateGameState, gameState.obstacles, gameState.powerUps]);
+  }, [
+    gameState.isPlaying, 
+    gameState.isPaused, 
+    updateGameState, 
+    gameState.obstacles, 
+    gameState.character, 
+    physics, 
+    addObstacles, 
+    addScore, 
+    passedObstacleIds, 
+    lastObstacleTime
+  ]);
+  
+  // Reset passed obstacles when game resets
+  useEffect(() => {
+    if (!gameState.isPlaying) {
+      setPassedObstacleIds([]);
+      setLastObstacleTime(0);
+    }
+  }, [gameState.isPlaying]);
   
   // Handle level selection
   const handleLevelSelect = (levelId: number) => {
@@ -163,20 +157,6 @@ const Game = () => {
     setShowLevelSelect(false);
     setShowMenu(false);
     setTimeout(() => startGame(), 100);
-  };
-  
-  // Handle showing tutorial
-  const handleShowTutorial = () => {
-    setShowTutorial(true);
-    toast.info("Game tutorial would be shown here!");
-    setTimeout(() => setShowTutorial(false), 1000);
-  };
-  
-  // Handle showing settings
-  const handleShowSettings = () => {
-    setShowSettings(true);
-    toast.info("Game settings would be shown here!");
-    setTimeout(() => setShowSettings(false), 1000);
   };
   
   return (
@@ -225,8 +205,8 @@ const Game = () => {
               }, 100);
             }}
             onSelectLevel={() => setShowLevelSelect(true)}
-            onShowTutorial={handleShowTutorial}
-            onShowSettings={handleShowSettings}
+            onShowTutorial={() => toast.info("Game tutorial would be shown here!")}
+            onShowSettings={() => toast.info("Game settings would be shown here!")}
             highScore={gameState.highScore}
           />
         )}

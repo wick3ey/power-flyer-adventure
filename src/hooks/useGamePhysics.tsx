@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
 import { checkCollision, clamp, lerp } from '../utils/gameUtils';
@@ -14,76 +13,83 @@ interface PhysicsConfig {
 }
 
 const defaultConfig: PhysicsConfig = {
-  gravity: 0.5,
-  jumpForce: -10,
-  maxVelocityY: 15,
-  groundY: 400,
+  gravity: 0.7,
+  jumpForce: -12,
+  maxVelocityY: 18,
+  groundY: 480,
   worldWidth: 800,
-  worldHeight: 500,
-  gameSpeed: 1,
+  worldHeight: 600,
+  gameSpeed: 2.5,
 };
 
 const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
-  // Merge default config with user config
   const physicsConfig: PhysicsConfig = { ...defaultConfig, ...config };
 
-  // Update character physics
   const updateCharacterPhysics = useCallback((character: Character): Character => {
-    // Apply gravity
     let velocityY = character.velocityY + physicsConfig.gravity;
-    
-    // Clamp velocity to prevent excessive speed
     velocityY = clamp(velocityY, -physicsConfig.maxVelocityY, physicsConfig.maxVelocityY);
-    
-    // Update position
     let y = character.y + velocityY;
-    
-    // Check ground collision
+    if (y < 0) {
+      y = 0;
+      velocityY = Math.abs(velocityY * 0.5);
+    }
     const isOnGround = y >= physicsConfig.groundY - character.height;
     if (isOnGround) {
       y = physicsConfig.groundY - character.height;
       velocityY = 0;
     }
-    
     return {
       ...character,
       y,
       velocityY,
-      isJumping: !isOnGround,
+      isJumping: true,
     };
   }, [physicsConfig]);
 
-  // Apply jump force
   const jump = useCallback((character: Character): Character => {
-    // Only jump if on the ground
-    if (!character.isJumping) {
-      return {
-        ...character,
-        velocityY: physicsConfig.jumpForce,
-        isJumping: true,
-      };
-    }
-    return character;
+    return {
+      ...character,
+      velocityY: physicsConfig.jumpForce,
+      isJumping: true,
+    };
   }, [physicsConfig.jumpForce]);
 
-  // Update obstacle physics
+  const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number) => {
+    const gapSize = 160;
+    const gapPosition = Math.random() * (worldHeight - gapSize - 200) + 100;
+    const topPipe: Obstacle = {
+      id: `pipe-top-${Date.now()}`,
+      type: 'static',
+      x: worldWidth,
+      y: 0,
+      width: 80,
+      height: gapPosition,
+      speed: physicsConfig.gameSpeed,
+    };
+    const bottomPipe: Obstacle = {
+      id: `pipe-bottom-${Date.now()}`,
+      type: 'static',
+      x: worldWidth,
+      y: gapPosition + gapSize,
+      width: 80,
+      height: worldHeight - (gapPosition + gapSize),
+      speed: physicsConfig.gameSpeed,
+    };
+    return [topPipe, bottomPipe];
+  }, [physicsConfig.gameSpeed]);
+
   const updateObstaclePhysics = useCallback((obstacle: Obstacle): Obstacle => {
-    // Move obstacle based on its speed and game speed
-    const x = obstacle.x - obstacle.speed * physicsConfig.gameSpeed;
-    
-    // For rotating obstacles, update rotation
+    const x = obstacle.x - obstacle.speed;
     const rotation = obstacle.rotation !== undefined 
       ? (obstacle.rotation + 1) % 360 
       : undefined;
-    
     return {
       ...obstacle,
       x,
       rotation,
     };
-  }, [physicsConfig.gameSpeed]);
+  }, []);
 
-  // Check collisions between character and obstacles
   const checkObstacleCollisions = useCallback((
     character: Character,
     obstacles: Obstacle[]
@@ -96,53 +102,59 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     return { collided: false, collidedWith: null };
   }, []);
 
-  // Check collisions between character and power-ups
+  const checkObstaclePassed = useCallback((
+    character: Character,
+    obstacle: Obstacle,
+    passedObstacleIds: string[]
+  ): boolean => {
+    if (obstacle.type === 'static' && obstacle.y === 0) {
+      const characterRightEdge = character.x + character.width;
+      const obstacleMiddleX = obstacle.x + (obstacle.width / 2);
+      if (characterRightEdge > obstacleMiddleX && !passedObstacleIds.includes(obstacle.id)) {
+        return true;
+      }
+    }
+    return false;
+  }, []);
+
   const checkPowerUpCollisions = useCallback((
     character: Character,
     powerUps: PowerUp[]
   ): { collided: boolean; collected: PowerUp[] } => {
     const collected: PowerUp[] = [];
-    
     for (const powerUp of powerUps) {
       if (!powerUp.isCollected && checkCollision(character, powerUp)) {
         collected.push(powerUp);
       }
     }
-    
     return { 
       collided: collected.length > 0,
       collected 
     };
   }, []);
 
-  // Check collisions between character and collectibles
   const checkCollectibleCollisions = useCallback((
     character: Character,
     collectibles: Collectible[]
   ): { collided: boolean; collected: Collectible[] } => {
     const collected: Collectible[] = [];
-    
     for (const collectible of collectibles) {
       if (!collectible.isCollected && checkCollision(character, collectible)) {
         collected.push(collectible);
       }
     }
-    
     return { 
       collided: collected.length > 0,
       collected 
     };
   }, []);
 
-  // Apply physics to breakable obstacles when hit
   const applyBreakablePhysics = useCallback((
     obstacle: Obstacle,
     impactForce: number
   ): Obstacle => {
     if (obstacle.type !== 'breakable') return obstacle;
-    
     const health = (obstacle.health || 1) - impactForce;
-    
     return {
       ...obstacle,
       health,
@@ -155,6 +167,8 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     jump,
     updateObstaclePhysics,
     checkObstacleCollisions,
+    checkObstaclePassed,
+    generateFlappyObstacles,
     checkPowerUpCollisions,
     checkCollectibleCollisions,
     applyBreakablePhysics,
