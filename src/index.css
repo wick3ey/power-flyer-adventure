@@ -152,6 +152,27 @@
   animation: slide 15s linear infinite;
 }
 
+/* New animations */
+.animate-wing-flap {
+  animation: wingFlap 0.5s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulseSoft 2s ease-in-out infinite;
+}
+
+@keyframes wingFlap {
+  0% { transform: translateY(-50%) rotate(0deg); }
+  50% { transform: translateY(-50%) rotate(-30deg); }
+  100% { transform: translateY(-50%) rotate(0deg); }
+}
+
+@keyframes pulseSoft {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
 @keyframes jump {
   0% { transform: translateY(0) rotate(0deg); }
   50% { transform: translateY(-20px) rotate(10deg); }
@@ -166,9 +187,38 @@
   100% { transform: translateX(0) rotate(0deg); opacity: 1; }
 }
 
+@keyframes float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
 @keyframes slide {
   0% { transform: translateX(100%); }
   100% { transform: translateX(-100%); }
+}
+
+/* Flappy bird specific animations */
+@keyframes birdFlap {
+  0% { transform: translateY(0) rotate(-5deg); }
+  50% { transform: translateY(-10px) rotate(10deg); }
+  100% { transform: translateY(0) rotate(-5deg); }
+}
+
+@keyframes birdFall {
+  from { transform: rotate(-5deg); }
+  to { transform: rotate(90deg); }
+}
+
+/* Particle animations */
+@keyframes particleFade {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0); }
+}
+
+@keyframes particleMove {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(var(--x-end), var(--y-end)); }
 }
 
 /* Transitions */
@@ -189,4 +239,17 @@
   opacity: 0;
   transform: translateY(-20px);
   transition: opacity 300ms, transform 300ms;
+}
+
+/* New 3D effects */
+.perspective-container {
+  perspective: 1000px;
+}
+
+.rotate3d-hover {
+  transition: transform 0.3s ease;
+}
+
+.rotate3d-hover:hover {
+  transform: rotateX(10deg) rotateY(10deg);
 }
