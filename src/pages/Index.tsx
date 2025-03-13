@@ -1,13 +1,38 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useEffect } from 'react';
+import { motion } from 'framer-motion';
+import Game from '../components/Game';
 
 const Index = () => {
+  // Set full height for mobile browsers
+  useEffect(() => {
+    const setDocumentHeight = () => {
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+    };
+
+    // Set initial height
+    setDocumentHeight();
+
+    // Update on resize or orientation change
+    window.addEventListener('resize', setDocumentHeight);
+    window.addEventListener('orientationchange', setDocumentHeight);
+
+    return () => {
+      window.removeEventListener('resize', setDocumentHeight);
+      window.removeEventListener('orientationchange', setDocumentHeight);
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <motion.div 
+      className="w-full h-screen overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600"
+      style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Game />
+    </motion.div>
   );
 };
 
