@@ -58,9 +58,10 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
 
   const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number, difficulty: number = 1) => {
     // Scale gap size based on difficulty (smaller gaps at higher difficulty)
+    // Increased minimum gap size to ensure playability
     const baseGapSize = 350; // Base gap size
-    const minGapSize = 180; // Never go below this minimum gap size
-    const gapSize = Math.max(minGapSize, baseGapSize - (difficulty * 15));
+    const minGapSize = 220; // Increased minimum gap size to ensure playability
+    const gapSize = Math.max(minGapSize, baseGapSize - (difficulty * 10)); // Reduced difficulty impact
     
     // Make sure gap is within a reasonable part of the screen
     const minGapPosition = 120; // Minimum gap position from top
@@ -73,12 +74,15 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     gapPosition = clamp(gapPosition, minGapPosition, maxGapPosition);
     
     // Calculate pipe width based on difficulty (wider pipes at higher difficulty)
+    // Cap the maximum width to ensure playability
     const baseWidth = 80;
-    const pipeWidth = Math.min(120, baseWidth + (difficulty * 3));
+    const maxWidth = 100; // Maximum pipe width to ensure playability
+    const pipeWidth = Math.min(maxWidth, baseWidth + (difficulty * 2)); // Reduced difficulty impact
     
-    // Calculate pipe speed based on difficulty
+    // Calculate pipe speed based on difficulty - capped for playability
     const baseSpeed = physicsConfig.gameSpeed;
-    const pipeSpeed = baseSpeed + (difficulty * 0.15);
+    const maxSpeed = baseSpeed + 1.5; // Maximum speed cap
+    const pipeSpeed = Math.min(maxSpeed, baseSpeed + (difficulty * 0.12)); // Reduced difficulty impact
     
     // Create obstacle ID with timestamp to ensure uniqueness
     const timestamp = Date.now();
@@ -106,13 +110,13 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
       speed: pipeSpeed,
     };
 
-    // VALIDATION STEP 1: Ensure the pipes don't overlap (this should never happen with our math, but just in case)
+    // Validation: Ensure the pipes don't overlap
     if (bottomPipe.y <= topPipe.y + topPipe.height) {
       console.error("Fixing overlapping pipes! Gap position:", gapPosition, "Gap size:", gapSize);
       bottomPipe.y = topPipe.y + topPipe.height + gapSize;
     }
     
-    // VALIDATION STEP 2: Ensure the bottom pipe doesn't go below screen
+    // Validation: Ensure the bottom pipe doesn't go below screen
     if (bottomPipe.y >= worldHeight) {
       console.error("Bottom pipe is off-screen! Fixing...");
       // Recalculate positions to ensure bottom pipe starts before world height
@@ -122,7 +126,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
       bottomPipe.height = worldHeight - bottomPipe.y;
     }
     
-    // VALIDATION STEP 3: Double-check that the effective gap is at least the minimum size
+    // Validation: Double-check that the effective gap is at least the minimum size
     const effectiveGap = bottomPipe.y - (topPipe.y + topPipe.height);
     if (effectiveGap < minGapSize) {
       console.error(`Gap too small: ${effectiveGap}px. Minimum required: ${minGapSize}px. Fixing...`);

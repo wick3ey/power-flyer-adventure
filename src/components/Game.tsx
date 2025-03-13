@@ -116,30 +116,30 @@ const Game = () => {
       return;
     }
     
-    // Function to generate Flappy Bird style pipe obstacles with collision prevention
+    // Function to generate Flappy Bird style pipe obstacles with improved collision prevention
     const generateObstacles = (timestamp: number) => {
       // Generate new obstacles with variable frequency based on difficulty
       const obstacleFrequency = 2000 - (currentDifficulty * 150); // Decrease time between obstacles as difficulty increases
-      const minFrequency = 1200; // Never go below this minimum frequency
+      const minFrequency = 1300; // Increased minimum frequency to prevent overcrowding
       const actualFrequency = Math.max(minFrequency, obstacleFrequency);
       
-      // Minimum distance between obstacles to prevent overcrowding
-      const minDistanceBetweenObstacles = window.innerWidth * 0.5; // 50% of screen width
+      // Increased minimum distance between obstacles to prevent overcrowding
+      const minDistanceBetweenObstacles = window.innerWidth * 0.65; // 65% of screen width
       
       // Check if enough time has passed AND if obstacles are spaced far enough apart
       const canGenerateObstacle = timestamp - lastObstacleTime > actualFrequency;
       const isProperlySpaced = lastObstacleX === null || 
-                               !gameState.obstacles.length || 
-                               lastObstacleX < window.innerWidth - minDistanceBetweenObstacles;
-                               
+                              !gameState.obstacles.length || 
+                              lastObstacleX < window.innerWidth - minDistanceBetweenObstacles;
+                              
       if (canGenerateObstacle && isProperlySpaced) {
-        // Check for duplicate or overlapping obstacles before generating new ones
-        const hasOverlappingObstacles = gameState.obstacles.some(obstacle => {
-          // Don't generate obstacles if any are still at the right edge of the screen
-          return obstacle.x + obstacle.width > window.innerWidth - 50;
+        // Double check for any obstacles near the right edge of the screen
+        const hasObstaclesNearEdge = gameState.obstacles.some(obstacle => {
+          // Don't generate obstacles if any are still near the right edge of the screen
+          return obstacle.x + obstacle.width > window.innerWidth - 120; // Increased safety margin
         });
         
-        if (!hasOverlappingObstacles) {
+        if (!hasObstaclesNearEdge) {
           // Use the current difficulty to generate appropriate obstacles
           const newObstacles = physics.generateFlappyObstacles(
             window.innerWidth, 
@@ -148,8 +148,9 @@ const Game = () => {
           );
           
           // Additional validation: Check that obstacles have a passable gap
+          // Ensure at least 200px gap for the player to pass through
           const isValidObstaclePair = newObstacles.length === 2 && 
-                                    newObstacles[1].y > (newObstacles[0].y + newObstacles[0].height + 150);
+                                    newObstacles[1].y > (newObstacles[0].y + newObstacles[0].height + 200);
           
           if (isValidObstaclePair) {
             addObstacles(newObstacles);
@@ -161,12 +162,12 @@ const Game = () => {
             const fixedObstacles = physics.generateFlappyObstacles(
               window.innerWidth, 
               window.innerHeight,
-              Math.max(1, currentDifficulty - 0.5) // Lower difficulty slightly for the retry
+              Math.max(1, currentDifficulty - 1) // Significantly lower difficulty for the retry
             );
             
             // Final safety check - only add if there's a valid gap
             if (fixedObstacles.length === 2 && 
-                fixedObstacles[1].y > (fixedObstacles[0].y + fixedObstacles[0].height + 150)) {
+                fixedObstacles[1].y > (fixedObstacles[0].y + fixedObstacles[0].height + 200)) {
               addObstacles(fixedObstacles);
               setLastObstacleTime(timestamp);
               setLastObstacleX(window.innerWidth);
