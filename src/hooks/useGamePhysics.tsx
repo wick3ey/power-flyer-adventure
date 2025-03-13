@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
 import { checkCollision, clamp, lerp, ObstacleType, generateId } from '../utils/gameUtils';
@@ -56,7 +55,6 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     };
   }, [physicsConfig.jumpForce]);
 
-  // Improved obstacle generation with dynamic difficulty scaling
   const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number, difficulty: number = 1) => {
     // Scale gap size based on difficulty (smaller gaps at higher difficulty)
     const baseGapSize = 350; // Base gap size
@@ -112,6 +110,20 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
       bottomPipe.y = topPipe.y + topPipe.height + gapSize;
     }
     
+    // Add more validation to ensure gaps are never closed
+    if (gapPosition + gapSize >= worldHeight) {
+      console.error("Invalid gap placement! Bottom pipe would be off-screen. Fixing...");
+      gapPosition = worldHeight - gapSize - 20;
+      bottomPipe.y = gapPosition + gapSize;
+    }
+    
+    // Additional validation to ensure there's always a visible gap
+    const effectiveGap = bottomPipe.y - (topPipe.y + topPipe.height);
+    if (effectiveGap < minGapSize) {
+      console.error(`Gap too small: ${effectiveGap}px. Minimum required: ${minGapSize}px. Fixing...`);
+      bottomPipe.y = topPipe.y + topPipe.height + minGapSize;
+    }
+    
     return [topPipe, bottomPipe];
   }, [physicsConfig.gameSpeed]);
 
@@ -119,29 +131,58 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     character: Character,
     obstacles: Obstacle[]
   ): { collided: boolean; collidedWith: Obstacle | null } => {
-    // Use a slightly smaller hitbox for the character for more forgiving gameplay
+    // Create character hitbox with exact dimensions for precise collision detection
+    // No more forgiving hitboxes - any touch is a collision
     const characterHitbox = {
-      x: character.x + character.width * 0.25, // 25% inset from left
-      y: character.y + character.height * 0.25, // 25% inset from top
-      width: character.width * 0.5, // 50% of original width
-      height: character.height * 0.5, // 50% of original height
+      x: character.x,
+      y: character.y,
+      width: character.width,
+      height: character.height
     };
     
     for (const obstacle of obstacles) {
-      // For pipes, adjust the hitbox to match the visual appearance better
-      if (obstacle.type === ObstacleType.STATIC) {
-        const obstacleHitbox = {
-          x: obstacle.x + 10, // Slightly larger inset for better feel
-          y: obstacle.y,
-          width: obstacle.width - 20, // Narrower for better feel
-          height: obstacle.height
-        };
-        
-        if (checkCollision(characterHitbox, obstacleHitbox)) {
-          return { collided: true, collidedWith: obstacle };
-        }
-      } else if (checkCollision(characterHitbox, obstacle)) {
+      // For all obstacles, use exact dimensions to detect collisions
+      // Every part of the obstacle is dangerous
+      const obstacleHitbox = {
+        x: obstacle.x,
+        y: obstacle.y,
+        width: obstacle.width,
+        height: obstacle.height
+      };
+      
+      // Check for collision with the main body of the obstacle
+      if (checkCollision(characterHitbox, obstacleHitbox)) {
         return { collided: true, collidedWith: obstacle };
+      }
+      
+      // Special case for the pipe caps (Flappy Bird style obstacles)
+      if (obstacle.type === ObstacleType.STATIC) {
+        // Top pipe cap
+        if (obstacle.y === 0) {
+          const capHitbox = {
+            x: obstacle.x - 16, // Cap extends 16px to the left of the pipe
+            y: obstacle.y + obstacle.height - 8, // Cap is at the bottom of the top pipe
+            width: obstacle.width + 32, // Cap extends 16px on both sides
+            height: 10 // Cap height
+          };
+          
+          if (checkCollision(characterHitbox, capHitbox)) {
+            return { collided: true, collidedWith: obstacle };
+          }
+        } 
+        // Bottom pipe cap
+        else {
+          const capHitbox = {
+            x: obstacle.x - 16, // Cap extends 16px to the left of the pipe
+            y: obstacle.y, // Cap is at the top of the bottom pipe
+            width: obstacle.width + 32, // Cap extends 16px on both sides
+            height: 10 // Cap height
+          };
+          
+          if (checkCollision(characterHitbox, capHitbox)) {
+            return { collided: true, collidedWith: obstacle };
+          }
+        }
       }
     }
     

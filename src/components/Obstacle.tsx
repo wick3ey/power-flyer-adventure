@@ -13,33 +13,33 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
   const getObstacleClasses = () => {
     switch (obstacle.type) {
       case ObstacleType.STATIC:
-        return 'bg-gradient-to-b from-green-600 to-green-800 border-2 border-green-900'; // Green pipes like in Flappy Bird
+        return 'bg-gradient-to-b from-red-600 to-red-800 border-2 border-red-900'; // Red dangerous pipes
       case ObstacleType.MOVING:
-        return 'bg-gradient-to-b from-yellow-500 to-amber-700 border-2 border-amber-800';
+        return 'bg-gradient-to-b from-orange-500 to-red-700 border-2 border-red-800';
       case ObstacleType.BREAKABLE:
-        return `bg-gradient-to-b from-blue-400 to-blue-600 border-2 border-blue-700 ${obstacle.isBreaking ? 'animate-pulse' : ''}`;
+        return `bg-gradient-to-b from-purple-600 to-purple-800 border-2 border-purple-900 ${obstacle.isBreaking ? 'animate-pulse' : ''}`;
       case ObstacleType.ROTATING:
-        return 'bg-gradient-to-b from-purple-500 to-purple-700 border-2 border-purple-800';
+        return 'bg-gradient-to-b from-magenta-500 to-purple-700 border-2 border-purple-800';
       default:
-        return 'bg-gradient-to-b from-green-600 to-green-800 border-2 border-green-900';
+        return 'bg-gradient-to-b from-red-600 to-red-800 border-2 border-red-900';
     }
   };
 
-  // Base style properties with improved visibility
+  // Base style properties with improved visibility and danger appearance
   const style: React.CSSProperties = {
     left: obstacle.x,
     top: obstacle.y,
     width: obstacle.width,
     height: obstacle.height,
-    borderRadius: obstacle.type === ObstacleType.STATIC ? '8px' : '4px',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.5), inset 2px 0 rgba(255,255,255,0.2)'
+    borderRadius: obstacle.type === ObstacleType.STATIC ? '6px' : '4px',
+    boxShadow: '0 4px 20px rgba(255,0,0,0.6), inset 2px 0 rgba(255,0,0,0.3)'
   };
 
   // For Flappy Bird style pipes, we need a cap on top
   const isPipe = obstacle.type === ObstacleType.STATIC;
   
-  // Visual indicator for obstacle hitbox - helps players understand the collision area
-  const showHitbox = true; // Show hitbox for better player understanding
+  // No visual indicator for obstacle hitbox - entire object is dangerous
+  const showHitbox = false;
 
   return (
     <motion.div 
@@ -49,38 +49,25 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
     >
-      {/* Pipe cap for Flappy Bird style obstacles */}
+      {/* Pipe cap for Flappy Bird style obstacles - now also dangerous */}
       {isPipe && (
         <div className={`absolute -left-4 -right-4 h-10 
                         ${obstacle.y > 200 ? '-top-8' : 'top-full -mt-2'} 
-                        bg-gradient-to-b from-green-500 to-green-700 
-                        border-2 border-green-900 rounded-md z-10`}>
-          <div className="absolute inset-1 bg-gradient-to-b from-green-400/20 to-green-900/30 rounded-sm"></div>
+                        bg-gradient-to-b from-red-500 to-red-700 
+                        border-2 border-red-900 rounded-md z-10`}>
+          <div className="absolute inset-1 bg-gradient-to-b from-red-400/20 to-red-900/30 rounded-sm"></div>
         </div>
       )}
       
-      {/* Inner shadow for depth */}
+      {/* Inner shadow for depth - more dangerous looking */}
       <div className="absolute inset-0 rounded-sm bg-gradient-to-b from-white/20 to-black/20"></div>
       
-      {/* Visual hitbox indicator to help the player understand collision boundaries */}
-      {showHitbox && (
-        <div className="absolute" style={{
-          left: 10, // Larger inset from left edge (was 5)
-          top: 0,
-          right: 10, // Larger inset from right edge (was 5)
-          bottom: 0,
-          border: '2px dashed rgba(255, 50, 50, 0.4)',
-          zIndex: 100,
-          pointerEvents: 'none'
-        }}></div>
-      )}
-      
-      {/* Surface pattern to add texture */}
-      <div className="absolute inset-0 opacity-10">
+      {/* Surface pattern to add texture - danger indicators */}
+      <div className="absolute inset-0 opacity-20">
         {[...Array(5)].map((_, i) => (
           <div 
             key={i}
-            className="absolute h-1 bg-black/40"
+            className="absolute h-1 bg-black/60"
             style={{ 
               left: '0',
               right: '0',
@@ -91,12 +78,15 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
       </div>
       
       {/* Highlight on edges for better visibility */}
-      <div className="absolute inset-0 border-l-2 border-t-2 border-white/10 rounded-sm"></div>
+      <div className="absolute inset-0 border-l-2 border-t-2 border-red-400/30 rounded-sm"></div>
       
-      {/* Warning indicator on pipe edges */}
-      {isPipe && (
-        <div className="absolute right-2 top-0 bottom-0 w-2 bg-gradient-to-b from-red-500/50 to-red-700/50"></div>
-      )}
+      {/* Warning glow effect to indicate danger */}
+      <div className="absolute inset-0 animate-pulse" 
+           style={{ 
+             boxShadow: 'inset 0 0 15px rgba(255,0,0,0.3)',
+             animation: 'pulse 2s infinite' 
+           }}>
+      </div>
     </motion.div>
   );
 };
