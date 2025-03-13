@@ -345,21 +345,39 @@ const useGameState = () => {
       }
       
       // Define the ground level - this is the position where game over should happen
-      const groundLevel = 480 - updatedCharacter.height;
+      const groundLevel = 550 - updatedCharacter.height; // Match with groundY from physics config
       
       if (updatedCharacter.y > groundLevel) {
+        // Only trigger game over if the bird is actually touching the ground
+        // and has a significant downward velocity (falling)
+        if (updatedCharacter.velocityY > 3) { // Bird is falling fast
+          toast.error("Game over! You hit the ground!");
+          return {
+            ...prev,
+            isPlaying: false,
+            isGameOver: true
+          };
+        }
+        
+        // Otherwise just keep the bird at ground level without game over
         updatedCharacter.y = groundLevel;
         updatedCharacter.velocityY = 0;
         updatedCharacter.isJumping = false;
       }
 
-      // Check for collisions with obstacles
+      // Check for collisions with obstacles - Only with the visible part of the pipes
       const isColliding = prev.obstacles.some(obstacle => {
+        // Use more precise collision detection
+        const characterRight = updatedCharacter.x + updatedCharacter.width * 0.8; // 80% of width
+        const characterLeft = updatedCharacter.x + updatedCharacter.width * 0.2; // 20% of width
+        const characterTop = updatedCharacter.y + updatedCharacter.height * 0.2; // 20% of height
+        const characterBottom = updatedCharacter.y + updatedCharacter.height * 0.8; // 80% of height
+        
         if (
-          updatedCharacter.x < obstacle.x + obstacle.width &&
-          updatedCharacter.x + updatedCharacter.width > obstacle.x &&
-          updatedCharacter.y < obstacle.y + obstacle.height &&
-          updatedCharacter.y + updatedCharacter.height > obstacle.y
+          characterRight > obstacle.x + obstacle.width * 0.1 &&
+          characterLeft < obstacle.x + obstacle.width * 0.9 &&
+          characterTop < obstacle.y + obstacle.height * 0.9 &&
+          characterBottom > obstacle.y + obstacle.height * 0.1
         ) {
           return true;
         }
@@ -388,19 +406,6 @@ const useGameState = () => {
             isPlaying: false,
             isGameOver: true,
             lives: 0
-          };
-        }
-      }
-
-      // Check for ground collision - ONLY trigger game over when actually touching the ground
-      if (updatedCharacter.y >= groundLevel) {
-        // We need to check if velocity is positive (falling) to avoid immediate game over when just sitting on ground
-        if (updatedCharacter.velocityY > 2) {  // Small threshold to ensure we're actually falling
-          toast.error("Game over! You hit the ground!");
-          return {
-            ...prev,
-            isPlaying: false,
-            isGameOver: true
           };
         }
       }

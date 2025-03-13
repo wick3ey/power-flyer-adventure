@@ -16,7 +16,7 @@ const defaultConfig: PhysicsConfig = {
   gravity: 0.7,
   jumpForce: -12,
   maxVelocityY: 18,
-  groundY: 480,
+  groundY: 550,
   worldWidth: 800,
   worldHeight: 600,
   gameSpeed: 2.5,
@@ -55,8 +55,8 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
   }, [physicsConfig.jumpForce]);
 
   const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number) => {
-    const gapSize = 160;
-    const gapPosition = Math.random() * (worldHeight - gapSize - 200) + 100;
+    const gapSize = 180;
+    const gapPosition = Math.random() * (worldHeight - gapSize - 250) + 120;
     const topPipe: Obstacle = {
       id: `pipe-top-${Date.now()}`,
       type: ObstacleType.STATIC,
