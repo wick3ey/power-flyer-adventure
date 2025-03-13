@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
-import { checkCollision, clamp, lerp } from '../utils/gameUtils';
+import { checkCollision, clamp, lerp, ObstacleType } from '../utils/gameUtils';
 
 interface PhysicsConfig {
   gravity: number;
@@ -59,7 +59,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     const gapPosition = Math.random() * (worldHeight - gapSize - 200) + 100;
     const topPipe: Obstacle = {
       id: `pipe-top-${Date.now()}`,
-      type: 'static',
+      type: ObstacleType.STATIC,
       x: worldWidth,
       y: 0,
       width: 80,
@@ -68,7 +68,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     };
     const bottomPipe: Obstacle = {
       id: `pipe-bottom-${Date.now()}`,
-      type: 'static',
+      type: ObstacleType.STATIC,
       x: worldWidth,
       y: gapPosition + gapSize,
       width: 80,

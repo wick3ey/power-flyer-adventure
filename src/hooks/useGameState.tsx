@@ -344,8 +344,11 @@ const useGameState = () => {
         updatedCharacter.velocityY = 0;
       }
       
-      if (updatedCharacter.y > 480 - updatedCharacter.height) {
-        updatedCharacter.y = 480 - updatedCharacter.height;
+      // Define the ground level - this is the position where game over should happen
+      const groundLevel = 480 - updatedCharacter.height;
+      
+      if (updatedCharacter.y > groundLevel) {
+        updatedCharacter.y = groundLevel;
         updatedCharacter.velocityY = 0;
         updatedCharacter.isJumping = false;
       }
@@ -363,7 +366,7 @@ const useGameState = () => {
         return false;
       });
 
-      // Handle collision
+      // Handle collision with obstacles
       if (isColliding && !updatedCharacter.hasShield) {
         // If player has shield, ignore collision
         // Otherwise, lose a life or end game
@@ -378,8 +381,8 @@ const useGameState = () => {
             }
           };
         } else {
-          // Game over
-          toast.error("Game over!");
+          // Game over on obstacle collision
+          toast.error("Game over! You hit an obstacle!");
           return {
             ...prev,
             isPlaying: false,
@@ -389,14 +392,17 @@ const useGameState = () => {
         }
       }
 
-      // Check for ground collision (game over in Flappy Bird)
-      if (updatedCharacter.y >= 480 - updatedCharacter.height) {
-        toast.error("Game over!");
-        return {
-          ...prev,
-          isPlaying: false,
-          isGameOver: true
-        };
+      // Check for ground collision - ONLY trigger game over when actually touching the ground
+      if (updatedCharacter.y >= groundLevel) {
+        // We need to check if velocity is positive (falling) to avoid immediate game over when just sitting on ground
+        if (updatedCharacter.velocityY > 2) {  // Small threshold to ensure we're actually falling
+          toast.error("Game over! You hit the ground!");
+          return {
+            ...prev,
+            isPlaying: false,
+            isGameOver: true
+          };
+        }
       }
 
       // Check for collisions with power-ups and collectibles
