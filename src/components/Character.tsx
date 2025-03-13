@@ -59,6 +59,9 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
     ? Math.max(-30, character.velocityY * 2) // Rotate up when rising (limited to -30deg)
     : Math.min(90, character.velocityY * 3);  // Rotate down when falling (up to 90deg)
 
+  // Show the character's hitbox to help players understand collision area
+  const showHitbox = true;
+  
   return (
     <motion.div 
       className="absolute z-10"
@@ -93,6 +96,20 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
           {/* Tail feathers */}
           <div className="absolute top-1/2 right-[85%] w-4 h-6 bg-blue-400 transform -translate-y-1/2 rounded-l-md"></div>
         </div>
+        
+        {/* Hitbox visualization */}
+        {showHitbox && (
+          <div className="absolute" style={{
+            left: character.width * 0.2,
+            top: character.height * 0.2,
+            right: character.width * 0.2, 
+            bottom: character.height * 0.2,
+            border: '2px dashed rgba(50, 200, 50, 0.6)',
+            borderRadius: '50%',
+            zIndex: 9,
+            pointerEvents: 'none'
+          }}></div>
+        )}
         
         {/* Shield effect if active */}
         {hasShield && (

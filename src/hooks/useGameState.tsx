@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from "sonner";
 import { PowerUpType, ObstacleType, DifficultyLevel } from '../utils/gameUtils';
+import useGamePhysics from './useGamePhysics';
 
 // Define the types for our game state
 export interface Character {
@@ -165,6 +166,9 @@ const useGameState = () => {
     ...initialGameState,
     levels: sampleLevels,
   });
+  
+  // Initialize game physics
+  const physics = useGamePhysics();
 
   // Load high score from local storage
   useEffect(() => {
@@ -363,75 +367,46 @@ const useGameState = () => {
         };
       }
 
-      // Check for collisions with obstacles - Super forgiving collision detection
-      const isColliding = prev.obstacles.some(obstacle => {
-        // Use extremely forgiving collision detection with a tiny hitbox
-        const characterRight = updatedCharacter.x + updatedCharacter.width * 0.60; // Reduced further to make collisions even rarer
-        const characterLeft = updatedCharacter.x + updatedCharacter.width * 0.40; // Increased to make collisions even rarer
-        const characterTop = updatedCharacter.y + updatedCharacter.height * 0.40; // Increased to make collisions even rarer
-        const characterBottom = updatedCharacter.y + updatedCharacter.height * 0.60; // Reduced to make collisions even rarer
-        
-        // Ultra generous collision detection with a tiny hitbox
-        if (
-          characterRight > obstacle.x + obstacle.width * 0.25 && // Increased from 0.2 to 0.25
-          characterLeft < obstacle.x + obstacle.width * 0.75 && // Decreased from 0.8 to 0.75
-          characterTop < obstacle.y + obstacle.height * 0.75 && // Decreased from 0.8 to 0.75
-          characterBottom > obstacle.y + obstacle.height * 0.25 // Increased from 0.2 to 0.25
-        ) {
-          return true;
-        }
-        return false;
-      });
+      // Use improved collision detection from physics hook
+      const { collided } = physics.checkObstacleCollisions(updatedCharacter, prev.obstacles);
 
-      // Handle collision with obstacles
-      if (isColliding && !updatedCharacter.hasShield) {
-        // If player has shield, ignore collision
-        // Otherwise, lose a life or end game
-        if (prev.lives > 1) {
-          toast.warning("Ouch! You lost a life!");
-          return {
-            ...prev,
-            lives: prev.lives - 1,
-            character: {
-              ...updatedCharacter,
-              isHurt: true
-            }
-          };
-        } else {
-          // Game over on obstacle collision
-          toast.error("Game over! You hit an obstacle!");
-          return {
-            ...prev,
-            isPlaying: false,
-            isGameOver: true,
-            lives: 0
-          };
-        }
+      // Handle collision with obstacles - instant game over on any collision
+      if (collided) {
+        toast.error("Game over! You hit an obstacle!");
+        return {
+          ...prev,
+          isPlaying: false,
+          isGameOver: true,
+        };
       }
 
-      // Check for score opportunities
+      // Check for obstacles that have been passed for scoring
       let scoreAdded = 0;
-      const passedObstacleIds = [...prev.obstacles]
-        .filter(o => o.type === ObstacleType.STATIC && o.y === 0) // Only top pipes
-        .filter(o => {
-          // Check if middle of obstacle has passed the character
-          const middleOfObstacle = o.x + o.width / 2;
+      const passedObstacles = prev.obstacles.filter(obstacle => {
+        if (obstacle.type === ObstacleType.STATIC && obstacle.y === 0) {
+          // This is a top pipe - check if we just passed its midpoint
           const characterRightEdge = updatedCharacter.x + updatedCharacter.width;
+          const obstacleMidpoint = obstacle.x + obstacle.width / 2;
           
-          // If character just passed the middle of the obstacle, it's a score
-          const justPassed = characterRightEdge > middleOfObstacle && 
-                            characterRightEdge - prev.character.velocityX <= middleOfObstacle;
+          // Check if we just crossed the midpoint in this frame
+          const justPassed = characterRightEdge > obstacleMidpoint && 
+                            prev.character.x + prev.character.width <= obstacleMidpoint;
           
           if (justPassed) {
             scoreAdded += 1;
-            // Maybe show a little toast or animation
             return true;
           }
-          return false;
-        })
-        .map(o => o.id);
+        }
+        return false;
+      });
+      
+      // If we passed any obstacles, show a notification
+      if (scoreAdded > 0) {
+        // Optional visual feedback for scoring
+        // toast.success(`+${scoreAdded} points!`);
+      }
 
-      // Check for collisions with power-ups and collectibles
+      // Check for collisions with power-ups
       const { powerUps, activePowerUps } = prev.powerUps.reduce(
         (acc, powerUp) => {
           if (
@@ -504,7 +479,7 @@ const useGameState = () => {
         activePowerUps,
       };
     });
-  }, [gameState.isPlaying, gameState.isPaused]);
+  }, [gameState.isPlaying, gameState.isPaused, physics]);
 
   // Reset game to initial state
   const resetGame = useCallback(() => {

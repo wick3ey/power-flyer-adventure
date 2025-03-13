@@ -25,21 +25,21 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
     }
   };
 
-  // Base style properties with improved visibility for larger gap
+  // Base style properties with improved visibility
   const style: React.CSSProperties = {
     left: obstacle.x,
     top: obstacle.y,
     width: obstacle.width,
     height: obstacle.height,
     borderRadius: obstacle.type === ObstacleType.STATIC ? '8px' : '4px',
-    boxShadow: '0 0 10px rgba(0,0,0,0.3), inset 2px 0 rgba(255,255,255,0.2)'
+    boxShadow: '0 0 15px rgba(0,0,0,0.4), inset 2px 0 rgba(255,255,255,0.2)'
   };
 
   // For Flappy Bird style pipes, we need a cap on top
   const isPipe = obstacle.type === ObstacleType.STATIC;
   
   // Visual indicator for obstacle hitbox - helps players understand the collision area
-  const showHitbox = false; // Set to true for debugging
+  const showHitbox = true; // Show hitbox for better player understanding
 
   return (
     <motion.div 
@@ -62,14 +62,14 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
       {/* Inner shadow for depth */}
       <div className="absolute inset-0 rounded-sm bg-gradient-to-b from-white/10 to-black/20"></div>
       
-      {/* Visual hitbox indicator for debugging */}
+      {/* Visual hitbox indicator to help the player understand collision boundaries */}
       {showHitbox && (
         <div className="absolute" style={{
-          left: obstacle.width * 0.25,
-          top: obstacle.height * 0.25,
-          right: obstacle.width * 0.25,
-          bottom: obstacle.height * 0.25,
-          border: '1px dashed red',
+          left: 5, // Slight inset from left edge
+          top: 0,
+          right: 5, // Slight inset from right edge
+          bottom: 0,
+          border: '2px dashed rgba(255, 50, 50, 0.4)',
           zIndex: 100,
           pointerEvents: 'none'
         }}></div>

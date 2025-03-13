@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
 import { checkCollision, clamp, lerp, ObstacleType } from '../utils/gameUtils';
@@ -58,7 +57,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
 
   const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number) => {
     // Even larger gap for easier navigation
-    const gapSize = 320; // Increased from 280 to 320 for much more room to maneuver
+    const gapSize = 350; // Increased from 320 to 350 for even more room to maneuver
     // Make sure gap is within a reasonable part of the screen
     const minGapPosition = 120; // Keep away from the very top
     const maxGapPosition = worldHeight - gapSize - 120; // Keep away from the bottom
@@ -85,6 +84,39 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     return [topPipe, bottomPipe];
   }, [physicsConfig.gameSpeed]);
 
+  const checkObstacleCollisions = useCallback((
+    character: Character,
+    obstacles: Obstacle[]
+  ): { collided: boolean; collidedWith: Obstacle | null } => {
+    // Use a slightly smaller hitbox for the character for more forgiving gameplay
+    const characterHitbox = {
+      x: character.x + character.width * 0.2, // 20% inset from left
+      y: character.y + character.height * 0.2, // 20% inset from top
+      width: character.width * 0.6, // 60% of original width
+      height: character.height * 0.6, // 60% of original height
+    };
+    
+    for (const obstacle of obstacles) {
+      // For pipes, adjust the hitbox to match the visual appearance better
+      if (obstacle.type === ObstacleType.STATIC) {
+        const obstacleHitbox = {
+          x: obstacle.x + 5, // Slight inset for better feel
+          y: obstacle.y,
+          width: obstacle.width - 10, // Slightly narrower for better feel
+          height: obstacle.height
+        };
+        
+        if (checkCollision(characterHitbox, obstacleHitbox)) {
+          return { collided: true, collidedWith: obstacle };
+        }
+      } else if (checkCollision(characterHitbox, obstacle)) {
+        return { collided: true, collidedWith: obstacle };
+      }
+    }
+    
+    return { collided: false, collidedWith: null };
+  }, []);
+
   const updateObstaclePhysics = useCallback((obstacle: Obstacle): Obstacle => {
     const x = obstacle.x - obstacle.speed;
     const rotation = obstacle.rotation !== undefined 
@@ -95,18 +127,6 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
       x,
       rotation,
     };
-  }, []);
-
-  const checkObstacleCollisions = useCallback((
-    character: Character,
-    obstacles: Obstacle[]
-  ): { collided: boolean; collidedWith: Obstacle | null } => {
-    for (const obstacle of obstacles) {
-      if (checkCollision(character, obstacle)) {
-        return { collided: true, collidedWith: obstacle };
-      }
-    }
-    return { collided: false, collidedWith: null };
   }, []);
 
   const checkObstaclePassed = useCallback((
