@@ -350,12 +350,12 @@ const useGameState = () => {
       }
       
       // Define the ground level - this is the position where game over should happen
-      const groundLevel = 580 - updatedCharacter.height; // Increased from 550 to 580 to match physics config
+      const groundLevel = 700 - updatedCharacter.height; // Significantly increased to allow the bird to fall much lower
       
       if (updatedCharacter.y > groundLevel) {
         // Only trigger game over if the bird is actually touching the ground
-        // and has a significant downward velocity (falling)
-        if (updatedCharacter.velocityY > 7) { // Bird is falling very fast - increased threshold for even later game over
+        // and has a very significant downward velocity (falling very fast)
+        if (updatedCharacter.velocityY > 12) { // Bird is falling extremely fast - increased threshold for very late game over
           toast.error("Game over! You hit the ground!");
           return {
             ...prev,
@@ -370,20 +370,20 @@ const useGameState = () => {
         updatedCharacter.isJumping = false;
       }
 
-      // Check for collisions with obstacles - Even more forgiving collision detection
+      // Check for collisions with obstacles - Super forgiving collision detection
       const isColliding = prev.obstacles.some(obstacle => {
-        // Use more precise collision detection with a smaller hitbox
-        const characterRight = updatedCharacter.x + updatedCharacter.width * 0.65; // Reduced from 0.7 to 0.65
-        const characterLeft = updatedCharacter.x + updatedCharacter.width * 0.35; // Increased from 0.3 to 0.35
-        const characterTop = updatedCharacter.y + updatedCharacter.height * 0.35; // Increased from 0.3 to 0.35
-        const characterBottom = updatedCharacter.y + updatedCharacter.height * 0.65; // Reduced from 0.7 to 0.65
+        // Use extremely forgiving collision detection with a tiny hitbox
+        const characterRight = updatedCharacter.x + updatedCharacter.width * 0.60; // Reduced further to make collisions even rarer
+        const characterLeft = updatedCharacter.x + updatedCharacter.width * 0.40; // Increased to make collisions even rarer
+        const characterTop = updatedCharacter.y + updatedCharacter.height * 0.40; // Increased to make collisions even rarer
+        const characterBottom = updatedCharacter.y + updatedCharacter.height * 0.60; // Reduced to make collisions even rarer
         
-        // More generous collision detection with slightly smaller hitbox
+        // Ultra generous collision detection with a tiny hitbox
         if (
-          characterRight > obstacle.x + obstacle.width * 0.2 && // Increased from 0.15 to 0.2
-          characterLeft < obstacle.x + obstacle.width * 0.8 && // Decreased from 0.85 to 0.8
-          characterTop < obstacle.y + obstacle.height * 0.8 && // Decreased from 0.85 to 0.8
-          characterBottom > obstacle.y + obstacle.height * 0.2 // Increased from 0.15 to 0.2
+          characterRight > obstacle.x + obstacle.width * 0.25 && // Increased from 0.2 to 0.25
+          characterLeft < obstacle.x + obstacle.width * 0.75 && // Decreased from 0.8 to 0.75
+          characterTop < obstacle.y + obstacle.height * 0.75 && // Decreased from 0.8 to 0.75
+          characterBottom > obstacle.y + obstacle.height * 0.25 // Increased from 0.2 to 0.25
         ) {
           return true;
         }

@@ -16,9 +16,9 @@ const defaultConfig: PhysicsConfig = {
   gravity: 0.6,  // Reduced slightly for better control
   jumpForce: -10,  // Less powerful jump for more control
   maxVelocityY: 15,
-  groundY: 580,  // Increased from 550 to 580 to allow the bird to fall further
+  groundY: 700,  // Significantly increased from 580 to 700 to allow falling much lower
   worldWidth: 800,
-  worldHeight: 600,
+  worldHeight: 800,  // Increased world height to match the new ground level
   gameSpeed: 2.2,  // Slightly slower game speed for better playability
 };
 
@@ -57,8 +57,8 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
   }, [physicsConfig.jumpForce]);
 
   const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number) => {
-    // Significantly larger gap for easier navigation
-    const gapSize = 240; // Increased from 220 to 240 for even more room to maneuver
+    // Even larger gap for easier navigation
+    const gapSize = 280; // Increased from 240 to 280 for much more room to maneuver
     // Make sure gap is within a reasonable part of the screen
     const minGapPosition = 120; // Keep away from the very top
     const maxGapPosition = worldHeight - gapSize - 120; // Keep away from the bottom
