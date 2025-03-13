@@ -25,7 +25,7 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
     }
   };
 
-  // Base style properties
+  // Base style properties with improved visibility for larger gap
   const style: React.CSSProperties = {
     left: obstacle.x,
     top: obstacle.y,
@@ -65,10 +65,10 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
       {/* Visual hitbox indicator for debugging */}
       {showHitbox && (
         <div className="absolute" style={{
-          left: obstacle.width * 0.15,
-          top: obstacle.height * 0.15,
-          right: obstacle.width * 0.15,
-          bottom: obstacle.height * 0.15,
+          left: obstacle.width * 0.2, // Changed from 0.15 to 0.2 to match the collision detection
+          top: obstacle.height * 0.2, // Changed from 0.15 to 0.2 to match the collision detection
+          right: obstacle.width * 0.2, // Changed from 0.15 to 0.2 to match the collision detection
+          bottom: obstacle.height * 0.2, // Changed from 0.15 to 0.2 to match the collision detection
           border: '1px dashed red',
           zIndex: 100,
           pointerEvents: 'none'
