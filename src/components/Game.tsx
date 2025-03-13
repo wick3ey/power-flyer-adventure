@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -46,6 +47,12 @@ const Game = () => {
   const [showMenu, setShowMenu] = useState(true);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
   
+  // Game dynamic difficulty scaling
+  const [currentDifficulty, setCurrentDifficulty] = useState(1);
+  
+  // Track time played for difficulty scaling
+  const [gameStartTime, setGameStartTime] = useState(0);
+  
   // Handle keyboard and touch controls
   const { isMobile } = useGameControls({
     isPlaying: gameState.isPlaying,
@@ -56,15 +63,46 @@ const Game = () => {
       if (!gameState.isPlaying) {
         if (gameState.activeLevel === null) {
           initializeLevel(1);
-          setTimeout(() => startGame(), 100);
+          setTimeout(() => {
+            startGame();
+            setGameStartTime(Date.now());
+          }, 100);
         } else {
           startGame();
+          setGameStartTime(Date.now());
         }
         setShowMenu(false);
       }
     },
     onReset: resetGame
   });
+  
+  // Update difficulty based on score and time
+  useEffect(() => {
+    if (gameState.isPlaying && !gameState.isPaused) {
+      // Calculate time played in seconds
+      const timePlayed = (Date.now() - gameStartTime) / 1000;
+      
+      // Increase difficulty based on both score and time played
+      // Base difficulty starts at 1, increases more rapidly as score/time goes up
+      const scoreFactor = gameState.score > 0 ? Math.log(gameState.score + 1) * 0.3 : 0;
+      const timeFactor = timePlayed > 0 ? Math.log(timePlayed + 1) * 0.2 : 0;
+      
+      const newDifficulty = 1 + scoreFactor + timeFactor;
+      
+      // Cap difficulty at 5 to prevent it from becoming impossible
+      const cappedDifficulty = Math.min(5, newDifficulty);
+      
+      if (Math.abs(cappedDifficulty - currentDifficulty) > 0.2) {
+        setCurrentDifficulty(cappedDifficulty);
+        
+        // Notify player of increasing difficulty at certain thresholds
+        if (Math.floor(cappedDifficulty) > Math.floor(currentDifficulty)) {
+          toast.info(`Difficulty increased to level ${Math.floor(cappedDifficulty)}!`);
+        }
+      }
+    }
+  }, [gameState.isPlaying, gameState.isPaused, gameState.score, gameStartTime, currentDifficulty]);
   
   // Game loop
   useEffect(() => {
@@ -78,11 +116,38 @@ const Game = () => {
     
     // Function to generate Flappy Bird style pipe obstacles
     const generateObstacles = (timestamp: number) => {
-      // Generate new obstacles every 2 seconds
-      if (timestamp - lastObstacleTime > 2000) {
-        const newObstacles = physics.generateFlappyObstacles(window.innerWidth, window.innerHeight);
-        addObstacles(newObstacles);
-        setLastObstacleTime(timestamp);
+      // Generate new obstacles with variable frequency based on difficulty
+      const obstacleFrequency = 2000 - (currentDifficulty * 150); // Decrease time between obstacles as difficulty increases
+      const minFrequency = 1200; // Never go below this minimum frequency
+      const actualFrequency = Math.max(minFrequency, obstacleFrequency);
+      
+      if (timestamp - lastObstacleTime > actualFrequency) {
+        // Use the current difficulty to generate appropriate obstacles
+        const newObstacles = physics.generateFlappyObstacles(
+          window.innerWidth, 
+          window.innerHeight,
+          currentDifficulty
+        );
+        
+        // Validate that obstacles have a passable gap
+        const isValidObstaclePair = newObstacles.length === 2 && 
+                                   newObstacles[1].y > (newObstacles[0].y + newObstacles[0].height + 150);
+        
+        if (isValidObstaclePair) {
+          addObstacles(newObstacles);
+          setLastObstacleTime(timestamp);
+        } else {
+          console.error("Invalid obstacle generation detected, retrying...");
+          // Try again immediately
+          const fixedObstacles = physics.generateFlappyObstacles(
+            window.innerWidth, 
+            window.innerHeight,
+            Math.max(1, currentDifficulty - 0.5) // Lower difficulty slightly for the retry
+          );
+          
+          addObstacles(fixedObstacles);
+          setLastObstacleTime(timestamp);
+        }
       }
     };
     
@@ -95,7 +160,9 @@ const Game = () => {
         if (physics.checkObstaclePassed(gameState.character, obstacle, passedObstacleIds)) {
           newPassedIds.push(obstacle.id);
           if (!scoreAdded) {
-            addScore(1);
+            // Award more points at higher difficulties
+            const pointsGained = Math.floor(1 + (currentDifficulty * 0.5));
+            addScore(pointsGained);
             scoreAdded = true; // Only add score once per pair of pipes
           }
         }
@@ -140,7 +207,8 @@ const Game = () => {
     addObstacles, 
     addScore, 
     passedObstacleIds, 
-    lastObstacleTime
+    lastObstacleTime,
+    currentDifficulty
   ]);
   
   // Reset passed obstacles when game resets
@@ -148,6 +216,7 @@ const Game = () => {
     if (!gameState.isPlaying) {
       setPassedObstacleIds([]);
       setLastObstacleTime(0);
+      setCurrentDifficulty(1);
     }
   }, [gameState.isPlaying]);
   
@@ -156,7 +225,10 @@ const Game = () => {
     initializeLevel(levelId);
     setShowLevelSelect(false);
     setShowMenu(false);
-    setTimeout(() => startGame(), 100);
+    setTimeout(() => {
+      startGame();
+      setGameStartTime(Date.now());
+    }, 100);
   };
   
   return (
@@ -164,7 +236,7 @@ const Game = () => {
       {/* Game canvas */}
       <GameCanvas gameState={gameState} />
       
-      {/* Score panel */}
+      {/* Score panel with difficulty indicator */}
       {gameState.isPlaying && (
         <ScorePanel 
           score={gameState.score}
@@ -172,6 +244,13 @@ const Game = () => {
           lives={gameState.lives}
           level={gameState.level}
         />
+      )}
+      
+      {/* Difficulty indicator */}
+      {gameState.isPlaying && !gameState.isPaused && (
+        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm text-white text-sm">
+          <span className="font-bold">Difficulty:</span> Level {Math.floor(currentDifficulty)}
+        </div>
       )}
       
       {/* Game controls */}
@@ -183,9 +262,13 @@ const Game = () => {
         onStart={() => {
           if (gameState.activeLevel === null) {
             initializeLevel(1);
-            setTimeout(() => startGame(), 100);
+            setTimeout(() => {
+              startGame();
+              setGameStartTime(Date.now());
+            }, 100);
           } else {
             startGame();
+            setGameStartTime(Date.now());
           }
           setShowMenu(false);
         }}
@@ -201,6 +284,7 @@ const Game = () => {
               initializeLevel(1);
               setTimeout(() => {
                 startGame();
+                setGameStartTime(Date.now());
                 setShowMenu(false);
               }, 100);
             }}
@@ -246,6 +330,10 @@ const Game = () => {
                 <div className="chip bg-yellow-100 text-yellow-800 mb-4">New High Score!</div>
               )}
               
+              <p className="text-sm text-gray-400 mb-4">
+                You reached difficulty level {Math.floor(currentDifficulty)}
+              </p>
+              
               <div className="flex gap-3">
                 <button 
                   onClick={() => {
@@ -260,7 +348,10 @@ const Game = () => {
                 <button 
                   onClick={() => {
                     initializeLevel(gameState.level);
-                    setTimeout(() => startGame(), 100);
+                    setTimeout(() => {
+                      startGame();
+                      setGameStartTime(Date.now());
+                    }, 100);
                   }}
                   className="game-button flex-1"
                 >

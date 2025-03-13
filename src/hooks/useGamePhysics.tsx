@@ -1,6 +1,7 @@
+
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
-import { checkCollision, clamp, lerp, ObstacleType } from '../utils/gameUtils';
+import { checkCollision, clamp, lerp, ObstacleType, generateId } from '../utils/gameUtils';
 
 interface PhysicsConfig {
   gravity: number;
@@ -55,32 +56,62 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     };
   }, [physicsConfig.jumpForce]);
 
-  const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number) => {
-    // Even larger gap for easier navigation
-    const gapSize = 350; // Increased from 320 to 350 for even more room to maneuver
+  // Improved obstacle generation with dynamic difficulty scaling
+  const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number, difficulty: number = 1) => {
+    // Scale gap size based on difficulty (smaller gaps at higher difficulty)
+    const baseGapSize = 350; // Base gap size
+    const minGapSize = 180; // Never go below this minimum gap size
+    const gapSize = Math.max(minGapSize, baseGapSize - (difficulty * 15));
+    
     // Make sure gap is within a reasonable part of the screen
-    const minGapPosition = 120; // Keep away from the very top
-    const maxGapPosition = worldHeight - gapSize - 120; // Keep away from the bottom
-    const gapPosition = Math.random() * (maxGapPosition - minGapPosition) + minGapPosition;
+    const minGapPosition = 120; // Minimum gap position from top
+    const maxGapPosition = worldHeight - gapSize - 120; // Maximum gap position
+    
+    // Generate a valid gap position that ensures the bird can always pass through
+    let gapPosition = Math.random() * (maxGapPosition - minGapPosition) + minGapPosition;
+    
+    // Ensure minimum space at top and bottom
+    gapPosition = clamp(gapPosition, minGapPosition, maxGapPosition);
+    
+    // Calculate pipe width based on difficulty (wider pipes at higher difficulty)
+    const baseWidth = 80;
+    const pipeWidth = Math.min(120, baseWidth + (difficulty * 3));
+    
+    // Calculate pipe speed based on difficulty
+    const baseSpeed = physicsConfig.gameSpeed;
+    const pipeSpeed = baseSpeed + (difficulty * 0.15);
+    
+    // Create obstacle ID with timestamp to ensure uniqueness
+    const timestamp = Date.now();
+    const randomSuffix = Math.floor(Math.random() * 1000);
     
     const topPipe: Obstacle = {
-      id: `pipe-top-${Date.now()}`,
+      id: `pipe-top-${timestamp}-${randomSuffix}`,
       type: ObstacleType.STATIC,
       x: worldWidth,
       y: 0,
-      width: 80,
+      width: pipeWidth,
       height: gapPosition,
-      speed: physicsConfig.gameSpeed,
+      speed: pipeSpeed,
     };
+    
     const bottomPipe: Obstacle = {
-      id: `pipe-bottom-${Date.now()}`,
+      id: `pipe-bottom-${timestamp}-${randomSuffix}`,
       type: ObstacleType.STATIC,
       x: worldWidth,
       y: gapPosition + gapSize,
-      width: 80,
+      width: pipeWidth,
       height: worldHeight - (gapPosition + gapSize),
-      speed: physicsConfig.gameSpeed,
+      speed: pipeSpeed,
     };
+    
+    // Validate that the pipes don't overlap and there's always a gap
+    if (bottomPipe.y <= topPipe.y + topPipe.height) {
+      console.error("Invalid pipe generation! Gap is closed. Fixing...");
+      // Fix by setting bottom pipe position to ensure a minimum gap
+      bottomPipe.y = topPipe.y + topPipe.height + gapSize;
+    }
+    
     return [topPipe, bottomPipe];
   }, [physicsConfig.gameSpeed]);
 
@@ -90,19 +121,19 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
   ): { collided: boolean; collidedWith: Obstacle | null } => {
     // Use a slightly smaller hitbox for the character for more forgiving gameplay
     const characterHitbox = {
-      x: character.x + character.width * 0.2, // 20% inset from left
-      y: character.y + character.height * 0.2, // 20% inset from top
-      width: character.width * 0.6, // 60% of original width
-      height: character.height * 0.6, // 60% of original height
+      x: character.x + character.width * 0.25, // 25% inset from left
+      y: character.y + character.height * 0.25, // 25% inset from top
+      width: character.width * 0.5, // 50% of original width
+      height: character.height * 0.5, // 50% of original height
     };
     
     for (const obstacle of obstacles) {
       // For pipes, adjust the hitbox to match the visual appearance better
       if (obstacle.type === ObstacleType.STATIC) {
         const obstacleHitbox = {
-          x: obstacle.x + 5, // Slight inset for better feel
+          x: obstacle.x + 10, // Slightly larger inset for better feel
           y: obstacle.y,
-          width: obstacle.width - 10, // Slightly narrower for better feel
+          width: obstacle.width - 20, // Narrower for better feel
           height: obstacle.height
         };
         
