@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
 import { checkCollision, clamp, lerp, ObstacleType, generateId } from '../utils/gameUtils';
@@ -66,7 +67,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     const maxGapPosition = worldHeight - gapSize - 120; // Maximum gap position
     
     // Generate a valid gap position that ensures the bird can always pass through
-    let gapPosition = Math.random() * (maxGapPosition - minGapPosition) + minGapPosition;
+    let gapPosition = Math.floor(Math.random() * (maxGapPosition - minGapPosition) + minGapPosition);
     
     // Ensure minimum space at top and bottom
     gapPosition = clamp(gapPosition, minGapPosition, maxGapPosition);
@@ -83,6 +84,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     const timestamp = Date.now();
     const randomSuffix = Math.floor(Math.random() * 1000);
     
+    // Create top pipe (ceiling to gap)
     const topPipe: Obstacle = {
       id: `pipe-top-${timestamp}-${randomSuffix}`,
       type: ObstacleType.STATIC,
@@ -93,6 +95,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
       speed: pipeSpeed,
     };
     
+    // Create bottom pipe (gap to bottom)
     const bottomPipe: Obstacle = {
       id: `pipe-bottom-${timestamp}-${randomSuffix}`,
       type: ObstacleType.STATIC,
@@ -102,26 +105,62 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
       height: worldHeight - (gapPosition + gapSize),
       speed: pipeSpeed,
     };
-    
-    // Validate that the pipes don't overlap and there's always a gap
+
+    // VALIDATION STEP 1: Ensure the pipes don't overlap (this should never happen with our math, but just in case)
     if (bottomPipe.y <= topPipe.y + topPipe.height) {
-      console.error("Invalid pipe generation! Gap is closed. Fixing...");
-      // Fix by setting bottom pipe position to ensure a minimum gap
+      console.error("Fixing overlapping pipes! Gap position:", gapPosition, "Gap size:", gapSize);
       bottomPipe.y = topPipe.y + topPipe.height + gapSize;
     }
     
-    // Add more validation to ensure gaps are never closed
-    if (gapPosition + gapSize >= worldHeight) {
-      console.error("Invalid gap placement! Bottom pipe would be off-screen. Fixing...");
-      gapPosition = worldHeight - gapSize - 20;
-      bottomPipe.y = gapPosition + gapSize;
+    // VALIDATION STEP 2: Ensure the bottom pipe doesn't go below screen
+    if (bottomPipe.y >= worldHeight) {
+      console.error("Bottom pipe is off-screen! Fixing...");
+      // Recalculate positions to ensure bottom pipe starts before world height
+      const maxTopHeight = worldHeight - gapSize - 50; // Ensure 50px minimum height for bottom pipe
+      topPipe.height = Math.min(topPipe.height, maxTopHeight);
+      bottomPipe.y = topPipe.height + gapSize;
+      bottomPipe.height = worldHeight - bottomPipe.y;
     }
     
-    // Additional validation to ensure there's always a visible gap
+    // VALIDATION STEP 3: Double-check that the effective gap is at least the minimum size
     const effectiveGap = bottomPipe.y - (topPipe.y + topPipe.height);
     if (effectiveGap < minGapSize) {
       console.error(`Gap too small: ${effectiveGap}px. Minimum required: ${minGapSize}px. Fixing...`);
+      // Ensure minimal gap size by adjusting bottom pipe position
       bottomPipe.y = topPipe.y + topPipe.height + minGapSize;
+      bottomPipe.height = worldHeight - bottomPipe.y;
+    }
+    
+    // FINAL VALIDATION: Run a sanity check to ensure the pipes are valid
+    if (
+      topPipe.height <= 0 || 
+      bottomPipe.height <= 0 || 
+      bottomPipe.y <= topPipe.y + topPipe.height ||
+      bottomPipe.y - (topPipe.y + topPipe.height) < minGapSize
+    ) {
+      console.error("Invalid pipe configuration detected! Generating safe fallback pipes.");
+      
+      // Create a safe fallback configuration with a guaranteed passable gap
+      return [
+        {
+          id: `pipe-top-safe-${timestamp}-${randomSuffix}`,
+          type: ObstacleType.STATIC,
+          x: worldWidth,
+          y: 0,
+          width: baseWidth,
+          height: Math.floor(worldHeight * 0.3), // Top 30% of screen
+          speed: baseSpeed,
+        },
+        {
+          id: `pipe-bottom-safe-${timestamp}-${randomSuffix}`,
+          type: ObstacleType.STATIC,
+          x: worldWidth,
+          y: Math.floor(worldHeight * 0.3) + minGapSize,
+          width: baseWidth,
+          height: worldHeight - (Math.floor(worldHeight * 0.3) + minGapSize),
+          speed: baseSpeed,
+        }
+      ];
     }
     
     return [topPipe, bottomPipe];

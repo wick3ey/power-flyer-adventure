@@ -31,30 +31,58 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
     top: obstacle.y,
     width: obstacle.width,
     height: obstacle.height,
-    borderRadius: obstacle.type === ObstacleType.STATIC ? '6px' : '4px',
-    boxShadow: '0 4px 20px rgba(255,0,0,0.6), inset 2px 0 rgba(255,0,0,0.3)'
+    borderRadius: obstacle.type === ObstacleType.STATIC ? '4px' : '3px',
+    boxShadow: '0 4px 20px rgba(255,0,0,0.6), inset 0px 0px 15px rgba(255,0,0,0.4)'
   };
 
   // For Flappy Bird style pipes, we need a cap on top
   const isPipe = obstacle.type === ObstacleType.STATIC;
   
-  // No visual indicator for obstacle hitbox - entire object is dangerous
-  const showHitbox = false;
+  // Enhanced danger glow animation to emphasize the obstacle is deadly
+  const dangerGlowAnimation = {
+    opacity: [0.6, 1, 0.6],
+    boxShadow: [
+      '0 0 10px rgba(255,0,0,0.6)',
+      '0 0 20px rgba(255,0,0,0.8)',
+      '0 0 10px rgba(255,0,0,0.6)'
+    ]
+  };
 
   return (
     <motion.div 
       className={`absolute ${getObstacleClasses()} shadow-lg overflow-visible z-10`}
       style={style}
-      initial={{ opacity: 0.5, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.2 }}
+      initial={{ opacity: 0.5, scale: 0.98 }}
+      animate={{ 
+        opacity: 1, 
+        scale: 1,
+        ...dangerGlowAnimation
+      }}
+      transition={{ 
+        duration: 0.3,
+        boxShadow: {
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut"
+        },
+        opacity: {
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut"
+        }
+      }}
     >
-      {/* Pipe cap for Flappy Bird style obstacles - now also dangerous */}
+      {/* Pipe cap for Flappy Bird style obstacles - now also dangerous with enhanced visuals */}
       {isPipe && (
-        <div className={`absolute -left-4 -right-4 h-10 
+        <div className={`absolute -left-3 -right-3 h-8
                         ${obstacle.y > 200 ? '-top-8' : 'top-full -mt-2'} 
                         bg-gradient-to-b from-red-500 to-red-700 
-                        border-2 border-red-900 rounded-md z-10`}>
+                        border-2 border-red-900 rounded-md z-10`}
+             style={{
+               boxShadow: '0 0 10px rgba(255,0,0,0.5)',
+             }}
+        >
+          {/* Inner highlight for cap */}
           <div className="absolute inset-1 bg-gradient-to-b from-red-400/20 to-red-900/30 rounded-sm"></div>
         </div>
       )}
@@ -77,14 +105,11 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
         ))}
       </div>
       
-      {/* Highlight on edges for better visibility */}
-      <div className="absolute inset-0 border-l-2 border-t-2 border-red-400/30 rounded-sm"></div>
-      
-      {/* Warning glow effect to indicate danger */}
-      <div className="absolute inset-0 animate-pulse" 
+      {/* Subtle glow effect for better visibility */}
+      <div className="absolute inset-0 bg-red-500/10 animate-pulse" 
            style={{ 
-             boxShadow: 'inset 0 0 15px rgba(255,0,0,0.3)',
-             animation: 'pulse 2s infinite' 
+             animation: 'pulse 2s infinite',
+             borderRadius: 'inherit'
            }}>
       </div>
     </motion.div>

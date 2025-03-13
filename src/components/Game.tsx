@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -42,6 +41,9 @@ const Game = () => {
   
   // Timer for spawning obstacles
   const [lastObstacleTime, setLastObstacleTime] = useState(0);
+  
+  // Track the last obstacle's x position to prevent spawning too close
+  const [lastObstacleX, setLastObstacleX] = useState<number | null>(null);
   
   // UI state
   const [showMenu, setShowMenu] = useState(true);
@@ -114,39 +116,68 @@ const Game = () => {
       return;
     }
     
-    // Function to generate Flappy Bird style pipe obstacles
+    // Function to generate Flappy Bird style pipe obstacles with collision prevention
     const generateObstacles = (timestamp: number) => {
       // Generate new obstacles with variable frequency based on difficulty
       const obstacleFrequency = 2000 - (currentDifficulty * 150); // Decrease time between obstacles as difficulty increases
       const minFrequency = 1200; // Never go below this minimum frequency
       const actualFrequency = Math.max(minFrequency, obstacleFrequency);
       
-      if (timestamp - lastObstacleTime > actualFrequency) {
-        // Use the current difficulty to generate appropriate obstacles
-        const newObstacles = physics.generateFlappyObstacles(
-          window.innerWidth, 
-          window.innerHeight,
-          currentDifficulty
-        );
+      // Minimum distance between obstacles to prevent overcrowding
+      const minDistanceBetweenObstacles = window.innerWidth * 0.5; // 50% of screen width
+      
+      // Check if enough time has passed AND if obstacles are spaced far enough apart
+      const canGenerateObstacle = timestamp - lastObstacleTime > actualFrequency;
+      const isProperlySpaced = lastObstacleX === null || 
+                               !gameState.obstacles.length || 
+                               lastObstacleX < window.innerWidth - minDistanceBetweenObstacles;
+                               
+      if (canGenerateObstacle && isProperlySpaced) {
+        // Check for duplicate or overlapping obstacles before generating new ones
+        const hasOverlappingObstacles = gameState.obstacles.some(obstacle => {
+          // Don't generate obstacles if any are still at the right edge of the screen
+          return obstacle.x + obstacle.width > window.innerWidth - 50;
+        });
         
-        // Validate that obstacles have a passable gap
-        const isValidObstaclePair = newObstacles.length === 2 && 
-                                   newObstacles[1].y > (newObstacles[0].y + newObstacles[0].height + 150);
-        
-        if (isValidObstaclePair) {
-          addObstacles(newObstacles);
-          setLastObstacleTime(timestamp);
-        } else {
-          console.error("Invalid obstacle generation detected, retrying...");
-          // Try again immediately
-          const fixedObstacles = physics.generateFlappyObstacles(
+        if (!hasOverlappingObstacles) {
+          // Use the current difficulty to generate appropriate obstacles
+          const newObstacles = physics.generateFlappyObstacles(
             window.innerWidth, 
             window.innerHeight,
-            Math.max(1, currentDifficulty - 0.5) // Lower difficulty slightly for the retry
+            currentDifficulty
           );
           
-          addObstacles(fixedObstacles);
-          setLastObstacleTime(timestamp);
+          // Additional validation: Check that obstacles have a passable gap
+          const isValidObstaclePair = newObstacles.length === 2 && 
+                                    newObstacles[1].y > (newObstacles[0].y + newObstacles[0].height + 150);
+          
+          if (isValidObstaclePair) {
+            addObstacles(newObstacles);
+            setLastObstacleTime(timestamp);
+            setLastObstacleX(window.innerWidth); // New obstacles always start at the right edge
+          } else {
+            console.error("Invalid obstacle generation detected, retrying...");
+            // Try again with lower difficulty to ensure a valid gap
+            const fixedObstacles = physics.generateFlappyObstacles(
+              window.innerWidth, 
+              window.innerHeight,
+              Math.max(1, currentDifficulty - 0.5) // Lower difficulty slightly for the retry
+            );
+            
+            // Final safety check - only add if there's a valid gap
+            if (fixedObstacles.length === 2 && 
+                fixedObstacles[1].y > (fixedObstacles[0].y + fixedObstacles[0].height + 150)) {
+              addObstacles(fixedObstacles);
+              setLastObstacleTime(timestamp);
+              setLastObstacleX(window.innerWidth);
+            } else {
+              console.error("Failed to generate valid obstacles even after retry. Skipping this obstacle.");
+              // Skip this obstacle generation cycle
+              setLastObstacleTime(timestamp);
+            }
+          }
+        } else {
+          console.log("Prevented overlapping obstacles - waiting for screen to clear");
         }
       }
     };
@@ -173,10 +204,27 @@ const Game = () => {
       }
     };
     
+    // Update last obstacle X position based on the rightmost obstacle
+    const updateLastObstacleX = () => {
+      if (gameState.obstacles.length === 0) {
+        setLastObstacleX(null);
+        return;
+      }
+      
+      const rightmostObstacle = gameState.obstacles.reduce((rightmost, current) => {
+        return current.x > rightmost.x ? current : rightmost;
+      }, gameState.obstacles[0]);
+      
+      setLastObstacleX(rightmostObstacle.x);
+    };
+    
     // Game loop function
     const gameLoop = (timestamp: number) => {
       // Generate obstacles 
       generateObstacles(timestamp);
+      
+      // Update obstacle tracking
+      updateLastObstacleX();
       
       // Check for scoring
       checkPassedObstacles();
@@ -208,7 +256,8 @@ const Game = () => {
     addScore, 
     passedObstacleIds, 
     lastObstacleTime,
-    currentDifficulty
+    currentDifficulty,
+    lastObstacleX
   ]);
   
   // Reset passed obstacles when game resets
@@ -217,6 +266,7 @@ const Game = () => {
       setPassedObstacleIds([]);
       setLastObstacleTime(0);
       setCurrentDifficulty(1);
+      setLastObstacleX(null); // Reset obstacle X position tracking
     }
   }, [gameState.isPlaying]);
   
