@@ -343,31 +343,24 @@ const useGameState = () => {
         y: prev.character.y + prev.character.velocityY,
       };
 
-      // Keep character within bounds
+      // Keep character within upper bound only (ceiling)
       if (updatedCharacter.y < 0) {
         updatedCharacter.y = 0;
         updatedCharacter.velocityY = 0;
       }
       
-      // Define the ground level - this is the position where game over should happen
-      const groundLevel = 700 - updatedCharacter.height; // Significantly increased to allow the bird to fall much lower
+      // Check if bird has fallen completely off screen (is no longer visible)
+      // The bird is considered off-screen if its top edge is below the viewport height
+      const isOffScreen = updatedCharacter.y > window.innerHeight;
       
-      if (updatedCharacter.y > groundLevel) {
-        // Only trigger game over if the bird is actually touching the ground
-        // and has a very significant downward velocity (falling very fast)
-        if (updatedCharacter.velocityY > 12) { // Bird is falling extremely fast - increased threshold for very late game over
-          toast.error("Game over! You hit the ground!");
-          return {
-            ...prev,
-            isPlaying: false,
-            isGameOver: true
-          };
-        }
-        
-        // Otherwise just keep the bird at ground level without game over
-        updatedCharacter.y = groundLevel;
-        updatedCharacter.velocityY = 0;
-        updatedCharacter.isJumping = false;
+      // Game over only when bird is completely off screen
+      if (isOffScreen) {
+        toast.error("Game over! Bird fell off screen!");
+        return {
+          ...prev,
+          isPlaying: false,
+          isGameOver: true
+        };
       }
 
       // Check for collisions with obstacles - Super forgiving collision detection

@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
 import { checkCollision, clamp, lerp, ObstacleType } from '../utils/gameUtils';
@@ -16,9 +17,9 @@ const defaultConfig: PhysicsConfig = {
   gravity: 0.6,  // Reduced slightly for better control
   jumpForce: -10,  // Less powerful jump for more control
   maxVelocityY: 15,
-  groundY: 700,  // Significantly increased from 580 to 700 to allow falling much lower
+  groundY: 2000,  // Extremely high value to essentially remove the ground
   worldWidth: 800,
-  worldHeight: 800,  // Increased world height to match the new ground level
+  worldHeight: 2000,  // Increased world height to match new ground concept
   gameSpeed: 2.2,  // Slightly slower game speed for better playability
 };
 
@@ -29,15 +30,14 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
     let velocityY = character.velocityY + physicsConfig.gravity;
     velocityY = clamp(velocityY, -physicsConfig.maxVelocityY, physicsConfig.maxVelocityY);
     let y = character.y + velocityY;
+    
+    // Only stop at ceiling, no ground collision
     if (y < 0) {
       y = 0;
       velocityY = Math.abs(velocityY * 0.5);
     }
-    const isOnGround = y >= physicsConfig.groundY - character.height;
-    if (isOnGround) {
-      y = physicsConfig.groundY - character.height;
-      velocityY = 0;
-    }
+    
+    // No ground detection or stopping - let the bird fall indefinitely
     return {
       ...character,
       y,
@@ -58,7 +58,7 @@ const useGamePhysics = (config: Partial<PhysicsConfig> = {}) => {
 
   const generateFlappyObstacles = useCallback((worldWidth: number, worldHeight: number) => {
     // Even larger gap for easier navigation
-    const gapSize = 280; // Increased from 240 to 280 for much more room to maneuver
+    const gapSize = 320; // Increased from 280 to 320 for much more room to maneuver
     // Make sure gap is within a reasonable part of the screen
     const minGapPosition = 120; // Keep away from the very top
     const maxGapPosition = worldHeight - gapSize - 120; // Keep away from the bottom
