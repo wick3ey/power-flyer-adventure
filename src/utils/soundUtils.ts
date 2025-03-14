@@ -69,6 +69,8 @@ export const playSound = (
 
 // Play the coin collection sound with random variations
 export const playCoinSound = () => {
+  console.log("Playing coin sound");
+  
   const randomPitch = 1.0 + (Math.random() * 0.2 - 0.1); // Between 0.9 and 1.1
   
   return playSound('/coin-sound.mp3', {
@@ -88,6 +90,8 @@ export const stopSound = (url: string): void => {
 
 // Preload sounds for better performance
 export const preloadSounds = (urls: string[]): void => {
+  console.log("Preloading sounds:", urls);
+  
   urls.forEach(url => {
     if (!audioCache[url]) {
       const audio = new Audio(url);

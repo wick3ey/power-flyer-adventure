@@ -12,8 +12,10 @@ import ScorePanel from './ScorePanel';
 import GameControls from './GameControls';
 import GameMenu from './GameMenu';
 import LevelSelect from './LevelSelect';
+import Coin from './Coin';
 
 import { generateId } from '../utils/gameUtils';
+import { preloadSounds } from '../utils/soundUtils';
 
 const Game = () => {
   // Game state and controls
@@ -52,9 +54,6 @@ const Game = () => {
   // Track collected coins
   const [coinsCollected, setCoinsCollected] = useState(0);
   
-  // Sound effects
-  const [coinSound] = useState(() => new Audio('/coin-sound.mp3'));
-  
   // UI state
   const [showMenu, setShowMenu] = useState(true);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
@@ -64,6 +63,11 @@ const Game = () => {
   
   // Track time played for difficulty scaling
   const [gameStartTime, setGameStartTime] = useState(0);
+
+  // Preload game sounds
+  useEffect(() => {
+    preloadSounds(['/coin-sound.mp3']);
+  }, []);
   
   // Handle keyboard and touch controls
   const { isMobile } = useGameControls({
@@ -115,6 +119,52 @@ const Game = () => {
       }
     }
   }, [gameState.isPlaying, gameState.isPaused, gameState.score, gameStartTime, currentDifficulty]);
+  
+  // Handle coin collection
+  const handleCoinCollect = (coin: any) => {
+    if (!coin.isCollected) {
+      // Update game state to mark the coin as collected
+      const updatedCollectibles = gameState.collectibles.map(c => {
+        if (c.id === coin.id) {
+          return { ...c, isCollected: true };
+        }
+        return c;
+      });
+      
+      // Update state
+      setGameState({
+        ...gameState,
+        collectibles: updatedCollectibles,
+        score: gameState.score + coin.value
+      });
+      
+      // Increment collected coins counter
+      setCoinsCollected(prev => prev + 1);
+      
+      // Visual feedback based on coin value
+      let toastColor = "yellow";
+      let coinMessage = "";
+      
+      if (coin.value >= 100) {
+        toastColor = "purple";
+        coinMessage = "Jackpot! +100";
+      } else if (coin.value >= 50) {
+        toastColor = "orange";
+        coinMessage = "Bonus Coin! +50";
+      } else if (coin.value >= 25) {
+        toastColor = "blue";
+        coinMessage = "Special Coin! +25";
+      }
+      
+      // Show toast for special coins
+      if (coinMessage) {
+        toast.success(coinMessage, {
+          icon: <Coins className={`text-${toastColor}-400`} />,
+          duration: 1500
+        });
+      }
+    }
+  };
   
   // Game loop
   useEffect(() => {
@@ -202,7 +252,7 @@ const Game = () => {
       const obstaclesRight = gameState.obstacles.filter(o => o.x > window.innerWidth);
       
       // Group obstacles by their ID prefix to find pairs
-      const obstaclePairs = {};
+      const obstaclePairs: {[key: string]: any[]} = {};
       obstaclesRight.forEach(o => {
         const pairId = o.id.split('-').slice(0, 3).join('-');
         if (!obstaclePairs[pairId]) {
@@ -212,7 +262,8 @@ const Game = () => {
       });
       
       // Place coins between each valid pair of obstacles with more patterns
-      Object.values(obstaclePairs).forEach((pair: any) => {
+      Object.keys(obstaclePairs).forEach((pairId) => {
+        const pair = obstaclePairs[pairId];
         if (pair.length !== 2) return;
         
         // Sort obstacles by y position (top pipe first, bottom pipe second)
@@ -221,7 +272,6 @@ const Game = () => {
         const [topPipe, bottomPipe] = pair;
         
         // Check if this pair already has coins
-        const pairId = topPipe.id.split('-').slice(0, 3).join('-');
         const hasCoinsBetween = gameState.collectibles.some(c => 
           c.id.includes(pairId)
         );
@@ -408,18 +458,24 @@ const Game = () => {
             break;
         }
         
-        // Add coins to game state
-        setGameState(prev => ({
-          ...prev,
-          collectibles: [...prev.collectibles, ...coins]
-        }));
+        // Add coins to game state if there are any to add
+        if (coins.length > 0) {
+          setGameState(prev => ({
+            ...prev,
+            collectibles: [...prev.collectibles, ...coins]
+          }));
+        }
       });
     };
     
     // Check for coin collections with enhanced feedback
     const checkCoinCollections = () => {
+      // Check if there are any collectibles
+      if (gameState.collectibles.length === 0) return;
+      
       const { character, collectibles } = gameState;
       
+      // Find coins that haven't been collected yet
       const uncollectedCoins = collectibles.filter(coin => !coin.isCollected);
       let newCoinCount = 0;
       let pointsEarned = 0;
@@ -439,38 +495,8 @@ const Game = () => {
           newCoinCount += 1;
           pointsEarned += coin.value;
           
-          // Play coin collection sound
-          try {
-            const coinSound = new Audio('/coin-sound.mp3');
-            coinSound.volume = 0.3;
-            coinSound.playbackRate = 1.0 + (Math.random() * 0.2 - 0.1); // Random pitch for variety
-            coinSound.play();
-          } catch (err) {
-            console.error("Error playing coin sound:", err);
-          }
-          
-          // Visual feedback based on coin value
-          let toastColor = "yellow";
-          let coinMessage = "";
-          
-          if (coin.value >= 100) {
-            toastColor = "purple";
-            coinMessage = "Jackpot! +100";
-          } else if (coin.value >= 50) {
-            toastColor = "orange";
-            coinMessage = "Bonus Coin! +50";
-          } else if (coin.value >= 25) {
-            toastColor = "blue";
-            coinMessage = "Special Coin! +25";
-          }
-          
-          // Show toast for special coins
-          if (coinMessage) {
-            toast.success(coinMessage, {
-              icon: <Coins className={`text-${toastColor}-400`} />,
-              duration: 1500
-            });
-          }
+          // Play coin collection sound via the playCoinSound utility
+          // This will now be handled by the Coin component itself
           
           return { ...coin, isCollected: true };
         }
@@ -483,7 +509,7 @@ const Game = () => {
         setCoinsCollected(prev => prev + newCoinCount);
         
         // Show collection milestone notifications
-        if (coinsCollected === 0 || (coinsCollected + newCoinCount) % 10 === 0) {
+        if ((coinsCollected + newCoinCount) % 10 === 0) {
           toast.success(`${coinsCollected + newCoinCount} coins collected!`, {
             icon: <Coins className="text-yellow-400" />,
           });
@@ -568,6 +594,7 @@ const Game = () => {
       }
     };
   }, [
+    gameState,
     gameState.isPlaying, 
     gameState.isPaused, 
     updateGameState, 
@@ -592,6 +619,7 @@ const Game = () => {
       setLastObstacleTime(0);
       setCurrentDifficulty(1);
       setLastObstacleX(null); // Reset obstacle X position tracking
+      setCoinsCollected(0); // Reset coin count
     }
   }, [gameState.isPlaying]);
   
@@ -606,10 +634,24 @@ const Game = () => {
     }, 100);
   };
   
+  // Directly render the coins in the game
+  const renderCoins = () => {
+    return gameState.collectibles.map(coin => (
+      <Coin 
+        key={coin.id} 
+        coin={coin} 
+        onCollect={handleCoinCollect} 
+      />
+    ));
+  };
+  
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* Game canvas */}
       <GameCanvas gameState={gameState} />
+      
+      {/* Render coins directly in the game div for better interaction */}
+      {gameState.isPlaying && !gameState.isPaused && renderCoins()}
       
       {/* Score panel with coins display */}
       {gameState.isPlaying && (
