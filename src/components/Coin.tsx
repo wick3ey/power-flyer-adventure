@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Collectible } from '../hooks/useGameState';
 import { playCoinSound } from '../utils/soundUtils';
@@ -14,7 +14,7 @@ const Coin: React.FC<CoinProps> = ({ coin, onCollect }) => {
   if (coin.isCollected) return null;
   
   // Play collection animation and trigger onCollect callback
-  const handleCollect = () => {
+  const handleCollect = useCallback(() => {
     if (onCollect) {
       // Play the coin sound using our utility
       playCoinSound();
@@ -22,7 +22,7 @@ const Coin: React.FC<CoinProps> = ({ coin, onCollect }) => {
       // Call the collect callback
       onCollect(coin);
     }
-  };
+  }, [coin, onCollect]);
   
   return (
     <motion.div
@@ -72,4 +72,4 @@ const Coin: React.FC<CoinProps> = ({ coin, onCollect }) => {
   );
 };
 
-export default Coin;
+export default React.memo(Coin);
