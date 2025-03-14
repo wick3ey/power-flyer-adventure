@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Coins } from 'lucide-react';
@@ -98,8 +99,57 @@ const Game = () => {
     },
     onReset: resetGame
   });
+
+  // Memoize handleCoinCollect to prevent recreation on every render
+  const handleCoinCollect = useCallback((coin: any) => {
+    console.log("Coin collection triggered!", coin);
+    
+    if (!coin.isCollected) {
+      // Update game state to mark the coin as collected
+      const updatedCollectibles = gameState.collectibles.map(c => {
+        if (c.id === coin.id) {
+          return { ...c, isCollected: true };
+        }
+        return c;
+      });
+      
+      // Update state
+      setGameState(prevState => ({
+        ...prevState,
+        collectibles: updatedCollectibles,
+        score: prevState.score + coin.value
+      }));
+      
+      // Increment collected coins counter
+      setCoinsCollected(prev => prev + 1);
+      
+      // Play sound
+      playCoinSound();
+      
+      // Visual feedback based on coin value
+      let toastColor = "yellow";
+      let coinMessage = "Coin collected! +10";
+      
+      if (coin.value >= 100) {
+        toastColor = "purple";
+        coinMessage = "Jackpot! +100";
+      } else if (coin.value >= 50) {
+        toastColor = "orange";
+        coinMessage = "Bonus Coin! +50";
+      } else if (coin.value >= 25) {
+        toastColor = "blue";
+        coinMessage = "Special Coin! +25";
+      }
+      
+      // Always show toast for coin collection
+      toast.success(coinMessage, {
+        icon: <Coins className={`text-${toastColor}-400`} />,
+        duration: 1500
+      });
+    }
+  }, [gameState.collectibles, setGameState]);
   
-  // Update difficulty based on score and time
+  // Update difficulty based on score and time - optimized dependency array
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isPaused) {
       // Calculate time played in seconds
@@ -123,53 +173,34 @@ const Game = () => {
         }
       }
     }
-  }, [gameState.isPlaying, gameState.isPaused, gameState.score, gameStartTime, currentDifficulty]);
+  }, [
+    gameState.isPlaying, 
+    gameState.isPaused, 
+    gameState.score, 
+    gameStartTime, 
+    currentDifficulty
+  ]);
   
-  // Handle coin collection with more robust implementation
-  const handleCoinCollect = (coin: any) => {
-    console.log("Coin collection triggered!", coin);
+  // Function to prune coins that have moved off screen
+  const pruneOffscreenCoins = useCallback(() => {
+    if (!gameState.collectibles || gameState.collectibles.length === 0) return;
     
-    if (!coin.isCollected) {
-      // Update game state to mark the coin as collected
-      const updatedCollectibles = gameState.collectibles.map(c => {
-        if (c.id === coin.id) {
-          return { ...c, isCollected: true };
-        }
-        return c;
-      });
+    const updatedCollectibles = gameState.collectibles.filter(coin => {
+      // Keep collected coins (for potential animation)
+      if (coin.isCollected) return false; // Remove collected coins
       
-      // Update state
-      setGameState({
-        ...gameState,
-        collectibles: updatedCollectibles,
-        score: gameState.score + coin.value
-      });
-      
-      // Increment collected coins counter
-      setCoinsCollected(prev => prev + 1);
-      
-      // Visual feedback based on coin value
-      let toastColor = "yellow";
-      let coinMessage = "Coin collected! +10";
-      
-      if (coin.value >= 100) {
-        toastColor = "purple";
-        coinMessage = "Jackpot! +100";
-      } else if (coin.value >= 50) {
-        toastColor = "orange";
-        coinMessage = "Bonus Coin! +50";
-      } else if (coin.value >= 25) {
-        toastColor = "blue";
-        coinMessage = "Special Coin! +25";
-      }
-      
-      // Always show toast for coin collection
-      toast.success(coinMessage, {
-        icon: <Coins className={`text-${toastColor}-400`} />,
-        duration: 1500
-      });
+      // Remove coins that have gone off the left edge of the screen
+      return coin.x > -100;
+    });
+    
+    // Only update if we actually pruned some coins
+    if (updatedCollectibles.length !== gameState.collectibles.length) {
+      setGameState(prev => ({
+        ...prev,
+        collectibles: updatedCollectibles
+      }));
     }
-  };
+  }, [gameState.collectibles, setGameState]);
   
   // Game loop
   useEffect(() => {
@@ -358,10 +389,7 @@ const Game = () => {
             };
             
             // Add the coin to the game state
-            setGameState(prev => ({
-              ...prev,
-              collectibles: [...prev.collectibles, newCoin]
-            }));
+            addCoins([newCoin]);
           }
         });
       }
@@ -504,24 +532,24 @@ const Game = () => {
       }
     };
   }, [
-    gameState,
     gameState.isPlaying, 
-    gameState.isPaused, 
-    updateGameState, 
-    gameState.obstacles, 
-    gameState.character, 
-    physics, 
-    addObstacles, 
-    addScore, 
-    passedObstacleIds, 
-    lastObstacleTime,
-    currentDifficulty,
-    lastObstacleX,
-    coinsCollected,
+    gameState.isPaused,
+    gameState.obstacles,
+    gameState.character,
     gameState.collectibles,
-    setGameState,
+    updateGameState,
+    physics,
+    addObstacles,
+    addScore,
+    addCoins,
+    pruneOffscreenCoins,
+    passedObstacleIds,
+    lastObstacleTime,
+    lastObstacleX,
+    currentDifficulty,
     forceGenerateCoins,
-    processedObstaclePairs
+    processedObstaclePairs,
+    setGameState
   ]);
   
   // Reset state when game resets
@@ -549,7 +577,7 @@ const Game = () => {
   };
   
   // Enhanced coin rendering with improved visibility
-  const renderCoins = () => {
+  const renderCoins = useCallback(() => {
     // Extra check to ensure we have coins to render
     if (!gameState.collectibles || gameState.collectibles.length === 0) {
       // If no coins are found during gameplay, force generation
@@ -568,28 +596,7 @@ const Game = () => {
         onCollect={handleCoinCollect} 
       />
     ));
-  };
-  
-  // Function to prune coins that have moved off screen
-  const pruneOffscreenCoins = () => {
-    if (!gameState.collectibles || gameState.collectibles.length === 0) return;
-    
-    const updatedCollectibles = gameState.collectibles.filter(coin => {
-      // Keep collected coins (for potential animation)
-      if (coin.isCollected) return false; // Remove collected coins
-      
-      // Remove coins that have gone off the left edge of the screen
-      return coin.x > -100;
-    });
-    
-    // Only update if we actually pruned some coins
-    if (updatedCollectibles.length !== gameState.collectibles.length) {
-      setGameState(prev => ({
-        ...prev,
-        collectibles: updatedCollectibles
-      }));
-    }
-  };
+  }, [gameState.collectibles, gameState.isPlaying, gameState.isPaused, handleCoinCollect]);
   
   return (
     <div className="relative w-full h-full overflow-hidden">
