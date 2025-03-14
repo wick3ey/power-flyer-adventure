@@ -26,7 +26,7 @@ const Coin: React.FC<CoinProps> = ({ coin, onCollect }) => {
   
   return (
     <motion.div
-      className="absolute z-10 pointer-events-auto cursor-pointer"
+      className="absolute z-20 pointer-events-auto cursor-pointer"
       style={{
         left: coin.x,
         top: coin.y,
@@ -34,37 +34,40 @@ const Coin: React.FC<CoinProps> = ({ coin, onCollect }) => {
         height: coin.height,
       }}
       onClick={handleCollect}
-      // Add more dynamic animation variants
+      // Enhanced animations for better visibility
       animate={{
         rotateY: [0, 360],
-        scale: [1, 1.05, 1],
+        scale: [1, 1.1, 1],
         y: [coin.y - 5, coin.y + 5, coin.y - 5]
       }}
       transition={{
         rotateY: {
           repeat: Infinity,
-          duration: 2,
+          duration: 1.5,
           ease: "linear"
         },
         scale: {
           repeat: Infinity,
-          duration: 1.5,
+          duration: 1.2,
           ease: "easeInOut"
         },
         y: {
           repeat: Infinity,
-          duration: 2,
+          duration: 1.8,
           ease: "easeInOut"
         }
       }}
-      whileHover={{ scale: 1.2 }}
+      whileHover={{ scale: 1.3 }}
     >
-      <img 
-        src="/lovable-uploads/9601a71e-a663-49ec-8571-be688805f4c7.png" 
-        alt="Coin"
-        className="w-full h-full object-contain"
-        style={{ filter: 'drop-shadow(0px 0px 8px rgba(255, 215, 0, 0.7))' }}
-      />
+      <div className="w-full h-full relative">
+        {/* Gold coin with shadow and glow effect */}
+        <div className="absolute inset-0 rounded-full bg-yellow-400 opacity-70 animate-pulse" 
+             style={{ filter: 'blur(4px)' }} />
+        <div className="w-full h-full rounded-full bg-gradient-to-br from-yellow-300 to-yellow-600 border-2 border-yellow-200 flex items-center justify-center text-yellow-800 font-bold shadow-lg"
+             style={{ boxShadow: '0 0 15px rgba(255, 215, 0, 0.7)' }}>
+          $
+        </div>
+      </div>
     </motion.div>
   );
 };

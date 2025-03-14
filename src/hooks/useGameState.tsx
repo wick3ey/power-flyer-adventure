@@ -324,33 +324,43 @@ const useGameState = () => {
     }));
   }, []);
 
-  // Add coins to the game with more variety
+  // Enhanced coin spawning with more variety
   const addCoins = useCallback((coins: Collectible[]) => {
+    console.log("Adding coins:", coins);
     setGameState(prev => ({
       ...prev,
       collectibles: [...prev.collectibles, ...coins]
     }));
   }, []);
 
-  // Collect coin - enhanced to include sound and visual effects
+  // Improved coin collection with log tracking
   const collectCoin = useCallback((coinId: string) => {
+    console.log("Collecting coin with ID:", coinId);
+    
     setGameState(prev => {
+      // Find the coin first to check if it exists and isn't collected
+      const targetCoin = prev.collectibles.find(c => c.id === coinId);
+      
+      if (!targetCoin || targetCoin.isCollected) {
+        console.log("Coin already collected or not found");
+        return prev; // No changes needed
+      }
+      
+      console.log(`Collecting coin worth ${targetCoin.value} points`);
+      
+      // Update all collectibles
       const updatedCollectibles = prev.collectibles.map(coin => {
-        if (coin.id === coinId && !coin.isCollected) {
-          // Play sound via the Game component
+        if (coin.id === coinId) {
           return { ...coin, isCollected: true };
         }
         return coin;
       });
       
-      // Calculate new score
-      const collectedCoin = prev.collectibles.find(c => c.id === coinId && !c.isCollected);
-      const pointsToAdd = collectedCoin ? collectedCoin.value : 0;
-      
+      // Return updated state
       return {
         ...prev,
         collectibles: updatedCollectibles,
-        score: prev.score + pointsToAdd
+        score: prev.score + targetCoin.value
       };
     });
   }, []);
