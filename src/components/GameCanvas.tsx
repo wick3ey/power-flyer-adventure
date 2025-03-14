@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CharacterComponent from './Character';
@@ -6,7 +7,7 @@ import PowerUpComponent from './PowerUp';
 import Coin from './Coin';
 import { GameState } from '../hooks/useGameState';
 
-// Bakgrundsbilder för olika nivåer
+// Background themes for different levels
 const BACKGROUNDS = [
   {
     id: 1,
@@ -14,6 +15,7 @@ const BACKGROUNDS = [
     clouds: "bg-white",
     hills: ["bg-green-600", "bg-green-700", "bg-green-800"],
     ground: "from-green-500 to-green-800",
+    groundDetails: ["bg-green-400", "bg-green-300"],
     particles: []
   },
   {
@@ -22,6 +24,7 @@ const BACKGROUNDS = [
     clouds: "bg-white/70",
     hills: ["bg-amber-700", "bg-amber-800", "bg-amber-900"],
     ground: "from-amber-600 to-amber-900",
+    groundDetails: ["bg-amber-500", "bg-amber-400"],
     particles: ["dust"]
   },
   {
@@ -30,6 +33,7 @@ const BACKGROUNDS = [
     clouds: "bg-white/60",
     hills: ["bg-indigo-800", "bg-indigo-900", "bg-purple-900"],
     ground: "from-indigo-800 to-purple-900",
+    groundDetails: ["bg-indigo-700", "bg-indigo-600"],
     particles: ["stars"]
   },
   {
@@ -38,6 +42,7 @@ const BACKGROUNDS = [
     clouds: "bg-white/80",
     hills: ["bg-emerald-700", "bg-emerald-800", "bg-teal-900"],
     ground: "from-emerald-600 to-teal-900",
+    groundDetails: ["bg-emerald-500", "bg-emerald-400"],
     particles: ["leaves"]
   },
   {
@@ -46,6 +51,7 @@ const BACKGROUNDS = [
     clouds: "bg-white/70",
     hills: ["bg-rose-700", "bg-rose-800", "bg-pink-900"],
     ground: "from-rose-600 to-pink-900",
+    groundDetails: ["bg-rose-500", "bg-rose-400"],
     particles: ["petals"]
   }
 ];
@@ -59,7 +65,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
   const [currentBackground, setCurrentBackground] = useState(BACKGROUNDS[0]);
   const [isTransitioning, setIsTransitioning] = useState(false);
   
-  // Uppdatera bakgrund när nivån ändras
+  // Update background when level changes
   useEffect(() => {
     const level = gameState.level || 1;
     const backgroundIndex = Math.min(level - 1, BACKGROUNDS.length - 1);
@@ -67,18 +73,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
     if (gameState.isPlaying && currentBackground.id !== level) {
       setIsTransitioning(true);
       
-      // Kort fördröjning för att få en snygg övergång
+      // Short delay for smooth transition
       setTimeout(() => {
         setCurrentBackground(BACKGROUNDS[backgroundIndex]);
         setIsTransitioning(false);
       }, 500);
     } else if (!gameState.isPlaying && level === 1) {
-      // Återställ bakgrund till nivå 1 när spelet startar om
+      // Reset background to level 1 when game restarts
       setCurrentBackground(BACKGROUNDS[0]);
     }
   }, [gameState.level, gameState.isPlaying]);
   
-  // Funktion för att generera stjärnpartiklar (för vissa bakgrunder)
+  // Function to generate star particles
   const renderParticles = () => {
     if (!currentBackground.particles.includes('stars')) return null;
     
@@ -103,7 +109,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
     );
   };
   
-  // Funktion för att generera löv- eller blombladspartiklar
+  // Function to generate leaf or flower petal particles
   const renderFloatingItems = () => {
     if (!currentBackground.particles.includes('leaves') && !currentBackground.particles.includes('petals')) return null;
     
@@ -142,7 +148,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
     );
   };
   
-  // Funktion för att generera dammpartiklar
+  // Function to generate dust particles
   const renderDust = () => {
     if (!currentBackground.particles.includes('dust')) return null;
     
@@ -192,86 +198,170 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
         ></motion.div>
       </AnimatePresence>
       
-      {/* Bakgrundseffekter baserat på nivå */}
+      {/* Background effects based on level */}
       {renderParticles()}
       {renderFloatingItems()}
       {renderDust()}
       
-      {/* Moln - Långsamt rörlig bakgrund */}
+      {/* Clouds - Slow moving background */}
       <motion.div 
         className="absolute inset-0 z-1"
         animate={{ x: [0, -1000] }}
         transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
       >
+        {/* Cloud formations with varied shapes */}
         <div className={`absolute top-20 left-1/4 w-40 h-16 rounded-full ${currentBackground.clouds} opacity-80`}></div>
         <div className={`absolute top-10 left-1/2 w-56 h-20 rounded-full ${currentBackground.clouds} opacity-80`}></div>
         <div className={`absolute top-40 left-3/4 w-32 h-14 rounded-full ${currentBackground.clouds} opacity-70`}></div>
         <div className={`absolute top-60 left-1/3 w-48 h-18 rounded-full ${currentBackground.clouds} opacity-80`}></div>
         <div className={`absolute top-30 left-[85%] w-60 h-20 rounded-full ${currentBackground.clouds} opacity-70`}></div>
         
-        {/* Duplicate moln för sömlös loop */}
+        {/* Complex cloud formations */}
+        <div className="absolute top-15 left-1/5">
+          <div className={`absolute w-24 h-14 rounded-full ${currentBackground.clouds} opacity-90`}></div>
+          <div className={`absolute left-10 top-3 w-32 h-16 rounded-full ${currentBackground.clouds} opacity-90`}></div>
+          <div className={`absolute left-20 top-1 w-28 h-14 rounded-full ${currentBackground.clouds} opacity-90`}></div>
+        </div>
+        
+        {/* Duplicate clouds for seamless loop */}
         <div className={`absolute top-20 left-[125%] w-40 h-16 rounded-full ${currentBackground.clouds} opacity-80`}></div>
         <div className={`absolute top-10 left-[150%] w-56 h-20 rounded-full ${currentBackground.clouds} opacity-80`}></div>
         <div className={`absolute top-40 left-[175%] w-32 h-14 rounded-full ${currentBackground.clouds} opacity-70`}></div>
         <div className={`absolute top-60 left-[133%] w-48 h-18 rounded-full ${currentBackground.clouds} opacity-80`}></div>
         <div className={`absolute top-30 left-[185%] w-60 h-20 rounded-full ${currentBackground.clouds} opacity-70`}></div>
+        
+        {/* Duplicate complex cloud formation */}
+        <div className="absolute top-15 left-[115%]">
+          <div className={`absolute w-24 h-14 rounded-full ${currentBackground.clouds} opacity-90`}></div>
+          <div className={`absolute left-10 top-3 w-32 h-16 rounded-full ${currentBackground.clouds} opacity-90`}></div>
+          <div className={`absolute left-20 top-1 w-28 h-14 rounded-full ${currentBackground.clouds} opacity-90`}></div>
+        </div>
       </motion.div>
       
-      {/* Kullar - Mellanbakgrund */}
+      {/* Hills - Mid-background with varied shapes */}
       <motion.div 
         className="absolute bottom-0 left-0 right-0 h-40 z-2"
         animate={{ x: [0, -800] }}
         transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
       >
+        {/* Hills with overlapping shapes for natural look */}
         <div className={`absolute bottom-0 left-0 w-96 h-32 rounded-t-full ${currentBackground.hills[0]} opacity-90`}></div>
         <div className={`absolute bottom-0 left-64 w-80 h-28 rounded-t-full ${currentBackground.hills[1]} opacity-90`}></div>
         <div className={`absolute bottom-0 left-[30rem] w-96 h-36 rounded-t-full ${currentBackground.hills[2]} opacity-90`}></div>
         <div className={`absolute bottom-0 left-[50rem] w-80 h-30 rounded-t-full ${currentBackground.hills[1]} opacity-90`}></div>
         
-        {/* Duplicate kullar för sömlös loop */}
+        {/* Hills with texture - small bumps */}
+        <div className="absolute bottom-20 left-[25rem] w-full h-10">
+          {[...Array(8)].map((_, i) => (
+            <div 
+              key={i}
+              className={`absolute rounded-t-full ${currentBackground.hills[Math.floor(Math.random() * 3)]} opacity-80`}
+              style={{
+                left: `${i * 120}px`,
+                width: `${40 + Math.random() * 50}px`,
+                height: `${10 + Math.random() * 15}px`
+              }}
+            ></div>
+          ))}
+        </div>
+        
+        {/* Duplicate hills for seamless loop */}
         <div className={`absolute bottom-0 left-[70rem] w-96 h-32 rounded-t-full ${currentBackground.hills[0]} opacity-90`}></div>
         <div className={`absolute bottom-0 left-[86rem] w-80 h-28 rounded-t-full ${currentBackground.hills[1]} opacity-90`}></div>
         <div className={`absolute bottom-0 left-[100rem] w-96 h-36 rounded-t-full ${currentBackground.hills[2]} opacity-90`}></div>
         <div className={`absolute bottom-0 left-[120rem] w-80 h-30 rounded-t-full ${currentBackground.hills[1]} opacity-90`}></div>
-      </motion.div>
-      
-      {/* Mark */}
-      <motion.div 
-        className={`absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-b ${currentBackground.ground} z-3`}
-        animate={{ x: [0, -500] }}
-        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-      >
-        {/* Markdetaljer - grästuvor */}
-        {[...Array(20)].map((_, i) => (
-          <div 
-            key={i}
-            className="absolute top-0 bg-green-400"
-            style={{ 
-              left: `${i * 5 + Math.random() * 2}%`,
-              height: `${4 + Math.random() * 4}px`,
-              width: '3px',
-              borderRadius: '2px 2px 0 0'
-            }}
-          ></div>
-        ))}
         
-        {/* Markmönster */}
-        <div className="absolute inset-0 opacity-20">
-          {[...Array(15)].map((_, i) => (
+        {/* Duplicate texture hills */}
+        <div className="absolute bottom-20 left-[95rem] w-full h-10">
+          {[...Array(8)].map((_, i) => (
             <div 
-              key={i}
-              className="absolute bottom-0 h-3 bg-green-900"
-              style={{ 
-                left: `${i * 8}%`,
-                width: '3%',
-                borderRadius: '2px 2px 0 0'
+              key={`dup-${i}`}
+              className={`absolute rounded-t-full ${currentBackground.hills[Math.floor(Math.random() * 3)]} opacity-80`}
+              style={{
+                left: `${i * 120}px`,
+                width: `${40 + Math.random() * 50}px`,
+                height: `${10 + Math.random() * 15}px`
               }}
             ></div>
           ))}
         </div>
       </motion.div>
       
-      {/* Render spelets element */}
+      {/* Detailed ground with multiple layers */}
+      <div className="absolute bottom-0 left-0 right-0 z-3">
+        {/* Ground base */}
+        <motion.div 
+          className={`absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-b ${currentBackground.ground}`}
+          animate={{ x: [0, -500] }}
+          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        ></motion.div>
+        
+        {/* Grass layer - detailed tufts */}
+        <div className="absolute bottom-18 left-0 right-0">
+          {[...Array(40)].map((_, i) => (
+            <div 
+              key={`grass-${i}`}
+              className={`absolute bottom-0 ${currentBackground.groundDetails[0]}`}
+              style={{ 
+                left: `${(i * 2.5) + Math.random()}%`,
+                height: `${4 + Math.random() * 6}px`,
+                width: '3px',
+                borderRadius: '2px 2px 0 0',
+                transform: `rotate(${-10 + Math.random() * 20}deg)`
+              }}
+            ></div>
+          ))}
+        </div>
+        
+        {/* Short grass tufts - more dense */}
+        <div className="absolute bottom-19 left-0 right-0">
+          {[...Array(60)].map((_, i) => (
+            <div 
+              key={`short-grass-${i}`}
+              className={`absolute bottom-0 ${currentBackground.groundDetails[1]}`}
+              style={{ 
+                left: `${(i * 1.7) + Math.random()}%`,
+                height: `${2 + Math.random() * 3}px`,
+                width: '2px',
+                borderRadius: '1px 1px 0 0',
+                transform: `rotate(${-5 + Math.random() * 10}deg)`
+              }}
+            ></div>
+          ))}
+        </div>
+        
+        {/* Ground texture - small stones and details */}
+        <div className="absolute bottom-0 left-0 right-0 h-2">
+          {[...Array(30)].map((_, i) => (
+            <div 
+              key={`stone-${i}`}
+              className="absolute rounded-full bg-gray-300 opacity-20"
+              style={{ 
+                left: `${Math.random() * 100}%`,
+                bottom: `${Math.random() * 10}px`,
+                width: `${2 + Math.random() * 4}px`,
+                height: `${2 + Math.random() * 4}px`
+              }}
+            ></div>
+          ))}
+        </div>
+        
+        {/* Ground pattern - subtle horizontal lines */}
+        <div className="absolute bottom-0 left-0 right-0 h-20 opacity-10">
+          {[...Array(5)].map((_, i) => (
+            <div 
+              key={`line-${i}`}
+              className="absolute left-0 right-0 bg-black"
+              style={{ 
+                bottom: `${i * 4}px`,
+                height: '1px',
+              }}
+            ></div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Game elements rendered on top of background */}
       {gameState.obstacles.map((obstacle) => (
         <ObstacleComponent key={obstacle.id} obstacle={obstacle} />
       ))}
@@ -284,20 +374,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
         <Coin key={coin.id} coin={coin} />
       ))}
       
-      {/* Render karaktär */}
+      {/* Character */}
       <CharacterComponent 
         character={gameState.character}
         activePowerUps={gameState.activePowerUps}
       />
       
-      {/* Poängräknare */}
+      {/* Score counter */}
       {gameState.isPlaying && (
         <div className="absolute top-10 left-1/2 transform -translate-x-1/2 z-50">
           <div className="text-6xl font-bold text-white text-shadow-lg">{gameState.score}</div>
         </div>
       )}
       
-      {/* Nivåindikator med animation */}
+      {/* Level indicator with animation */}
       <AnimatePresence>
         {gameState.isPlaying && gameState.level > 1 && !isTransitioning && (
           <motion.div 
@@ -314,7 +404,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
         )}
       </AnimatePresence>
       
-      {/* Nivåövergångseffekt */}
+      {/* Level transition effect */}
       <AnimatePresence>
         {isTransitioning && (
           <motion.div 
