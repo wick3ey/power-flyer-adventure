@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { PowerUpType } from '../utils/gameUtils';
 import { Character } from '../hooks/useGameState';
 import { motion } from 'framer-motion';
+import { useIsMobile } from '../hooks/use-mobile';
 
 interface CharacterProps {
   character: Character;
@@ -12,6 +13,7 @@ interface CharacterProps {
 const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUps }) => {
   const [animationState, setAnimationState] = useState<'idle' | 'jump' | 'hurt' | 'flap'>('idle');
   const [flapped, setFlapped] = useState(false);
+  const isMobile = useIsMobile();
   
   // Update animation state based on character state
   useEffect(() => {
@@ -40,36 +42,38 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
   const hasShield = activePowerUps.includes(PowerUpType.SHIELD);
   const hasSpeedBoost = activePowerUps.includes(PowerUpType.SPEED);
 
-  // Bird flapping animation variants - now more dynamic and responsive
-  const flapVariants = {
+  // Animation variants
+  const movementVariants = {
     idle: { 
-      rotate: 0, 
       y: [0, -3, 0], 
       transition: { y: { repeat: Infinity, duration: 1.5 } } 
     },
     flap: { 
-      rotate: [-5, 10, -5], 
       y: [-12, -18, -12],
       transition: { 
-        rotate: { duration: 0.2 },
         y: { duration: 0.2 }
       }
     },
     hurt: { 
-      rotate: [-10, 10, -10, 10, 0], 
+      rotate: [-5, 5, -5, 5, 0], 
       x: [-5, 5, -5, 5, 0],
       transition: { duration: 0.5 }
     }
   };
 
-  // Calculate rotation based on velocity for realistic flight - more responsive now
-  const velocityMultiplier = character.velocityY < 0 ? 2 : 3.5; // More dramatic falling rotation
+  // Calculate rotation based on velocity for realistic flight
+  const velocityMultiplier = character.velocityY < 0 ? 1 : 2; 
   const rotation = character.velocityY < 0 
-    ? Math.max(-25, character.velocityY * velocityMultiplier) // Rotate up when rising (limited to -25deg)
-    : Math.min(80, character.velocityY * velocityMultiplier);  // Rotate down when falling (up to 80deg)
+    ? Math.max(-15, character.velocityY * velocityMultiplier) 
+    : Math.min(30, character.velocityY * velocityMultiplier);  
 
   // Show the character's hitbox to help players understand collision area
   const showHitbox = true;
+  
+  // Scale for mobile devices
+  const sizeMultiplier = isMobile ? 0.7 : 1;
+  const characterWidth = character.width * sizeMultiplier;
+  const characterHeight = character.height * sizeMultiplier;
   
   return (
     <motion.div 
@@ -77,55 +81,69 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
       style={{
         left: character.x,
         top: character.y,
-        width: character.width,
-        height: character.height,
+        width: characterWidth,
+        height: characterHeight,
         transform: `rotate(${rotation}deg)`,
         transition: 'transform 0.1s ease-out',
       }}
       animate={animationState}
-      variants={flapVariants}
+      variants={movementVariants}
     >
-      {/* Character body */}
       <div className="relative w-full h-full">
-        {/* Bird body */}
-        <div 
-          className={`absolute inset-0 rounded-full bg-yellow-500 shadow-lg
-                     ${hasSpeedBoost ? 'animate-pulse-soft' : ''}`}
-        >
-          {/* Wings */}
-          <div 
-            className={`absolute left-1 top-1/2 w-5 h-8 rounded-l-full bg-yellow-400 transform -translate-y-1/2 origin-right 
-                      ${flapped ? 'animate-wing-flap' : ''}`}
-            style={{ 
-              transformStyle: 'preserve-3d',
-            }}
-          ></div>
+        {/* Trump Character Container - scaled down to fit game */}
+        <div className="relative w-full h-full scale-[0.6] origin-center">
+          {/* Hair Back */}
+          <div className="absolute w-[80%] h-[20%] bg-[#ffcc00] rounded-t-[20px] top-[15%] left-[10%] z-[1] rotate-[5deg]"></div>
           
-          {/* Eyes */}
-          <div className="absolute top-1/4 left-2/3 w-6 h-6 rounded-full bg-white"></div>
-          <div className="absolute top-1/4 left-2/3 w-3 h-3 rounded-full bg-black transform translate-x-1"></div>
+          {/* Hair Side */}
+          <div className="absolute w-[20%] h-[60%] bg-[#ffcc00] top-[30%] left-[10%] z-[1] -rotate-[10deg]"></div>
           
-          {/* Beak */}
-          <div className="absolute top-[45%] left-[90%] w-6 h-4 bg-orange-500 transform -translate-y-1/2 rounded-r-md"></div>
+          {/* Head */}
+          <div className="absolute w-[70%] h-[60%] bg-[#ffdbac] rounded-[35px] top-[25%] left-[15%] shadow-md z-[2]"></div>
           
-          {/* Tail feathers */}
-          <div className="absolute top-1/2 right-[85%] w-4 h-6 bg-yellow-400 transform -translate-y-1/2 rounded-l-md"></div>
+          {/* Hair Front */}
+          <div className="absolute w-[80%] h-[40%] bg-[#ffcc00] rounded-t-[40px] top-[10%] left-[10%] z-[3] -rotate-[5deg] shadow-inner"></div>
           
-          {/* Body details - feather texture */}
-          <div className="absolute inset-0 rounded-full overflow-hidden opacity-30">
-            {[...Array(5)].map((_, i) => (
-              <div 
-                key={i}
-                className="absolute h-3 bg-yellow-600/30 rounded-full"
-                style={{ 
-                  width: '140%',
-                  left: '-20%',
-                  top: `${i * 20 + 10}%`,
-                  transform: `rotate(${i * 5}deg)`,
-                }}
-              ></div>
-            ))}
+          {/* Hair Top */}
+          <div className="absolute w-[80%] h-[30%] bg-[#ffcc00] rounded-t-[50px] top-[5%] left-[10%] z-[4] -rotate-[2deg]"></div>
+          
+          {/* Face Elements */}
+          <div className="absolute w-[70%] h-[60%] top-[25%] left-[15%] z-[5]">
+            {/* Eyebrows */}
+            <div className="absolute w-[15%] h-[4%] bg-[#ffcc00] top-[30%] left-[20%] rounded-[2.5px] -rotate-[10deg]"></div>
+            <div className="absolute w-[15%] h-[4%] bg-[#ffcc00] top-[30%] right-[20%] rounded-[2.5px] rotate-[10deg]"></div>
+            
+            {/* Eyes */}
+            <div className="absolute w-[12.5%] h-[6%] bg-white top-[38%] left-[20%] rounded-full border border-gray-400">
+              <div className="absolute w-[40%] h-[83%] bg-[#1c77c3] rounded-full top-[8%] left-[32%]">
+                <div className="absolute w-[40%] h-[40%] bg-black rounded-full top-[30%] left-[30%]"></div>
+              </div>
+            </div>
+            <div className="absolute w-[12.5%] h-[6%] bg-white top-[38%] right-[20%] rounded-full border border-gray-400">
+              <div className="absolute w-[40%] h-[83%] bg-[#1c77c3] rounded-full top-[8%] left-[32%]">
+                <div className="absolute w-[40%] h-[40%] bg-black rounded-full top-[30%] left-[30%]"></div>
+              </div>
+            </div>
+            
+            {/* Nose */}
+            <div className="absolute w-[15%] h-[20%] bg-[#ffdbac] rounded-[15px] top-[43%] left-[42.5%] shadow-md"></div>
+            
+            {/* Mouth */}
+            <div className="absolute w-[30%] h-[12.5%] bg-white top-[70%] left-[35%] rounded-b-[15px] border border-gray-300 overflow-hidden">
+              <div className="absolute w-[100%] h-[60%] bg-[#ffccab] rounded-t-[14.5px] bottom-0 left-0"></div>
+            </div>
           </div>
+          
+          {/* Body */}
+          <div className={`absolute w-[50%] h-[60%] bg-[#14213d] rounded-[25px] bottom-0 left-[25%] z-[1] shadow-lg
+                          ${hasSpeedBoost ? 'animate-pulse-soft' : ''}`}></div>
+          
+          {/* Shirt */}
+          <div className="absolute w-[25%] h-[40%] bg-white bottom-[10%] left-[37.5%] rounded-t-[10px] z-[2]"></div>
+          
+          {/* Tie */}
+          <div className="absolute w-[10%] h-[35%] bg-[#e63946] bottom-[15%] left-[45%] z-[3]" 
+               style={{clipPath: "polygon(0 0, 100% 0, 80% 50%, 100% 100%, 50% 85%, 0 100%, 20% 50%)"}}></div>
         </div>
         
         {/* Hitbox visualization */}
@@ -148,7 +166,7 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
         )}
       </div>
       
-      {/* Motion trail for flying - now more dynamic and responsive */}
+      {/* Motion trail for flying */}
       {(animationState === 'flap' || hasSpeedBoost) && (
         <div className="absolute right-full top-1/2 transform -translate-y-1/2">
           <div className="flex space-x-1">
@@ -167,7 +185,7 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
         </div>
       )}
       
-      {/* Jump effect particles - only shows briefly when jumping */}
+      {/* Jump effect particles */}
       {character.isJumping && flapped && (
         <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2">
           {[...Array(6)].map((_, i) => (
