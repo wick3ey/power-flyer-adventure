@@ -324,15 +324,43 @@ const useGameState = () => {
     }));
   }, []);
 
+  // Add coins to the game with more variety
+  const addCoins = useCallback((coins: Collectible[]) => {
+    setGameState(prev => ({
+      ...prev,
+      collectibles: [...prev.collectibles, ...coins]
+    }));
+  }, []);
+
+  // Collect coin - enhanced to include sound and visual effects
+  const collectCoin = useCallback((coinId: string) => {
+    setGameState(prev => {
+      const updatedCollectibles = prev.collectibles.map(coin => {
+        if (coin.id === coinId && !coin.isCollected) {
+          // Play sound via the Game component
+          return { ...coin, isCollected: true };
+        }
+        return coin;
+      });
+      
+      // Calculate new score
+      const collectedCoin = prev.collectibles.find(c => c.id === coinId && !c.isCollected);
+      const pointsToAdd = collectedCoin ? collectedCoin.value : 0;
+      
+      return {
+        ...prev,
+        collectibles: updatedCollectibles,
+        score: prev.score + pointsToAdd
+      };
+    });
+  }, []);
+
   // Add to score
   const addScore = useCallback((points: number) => {
     setGameState(prev => ({
       ...prev,
       score: prev.score + points
     }));
-    
-    // Optional: play a sound or show a toast for feedback
-    // toast.success(`+${points} points!`);
   }, []);
 
   // Update game state - called on each animation frame
@@ -437,7 +465,7 @@ const useGameState = () => {
         { powerUps: [] as PowerUp[], activePowerUps: [...prev.activePowerUps] }
       );
 
-      // Check for collisions with collectibles
+      // Check for collisions with collectibles (coins)
       const { collectibles, score } = prev.collectibles.reduce(
         (acc, collectible) => {
           if (
@@ -447,7 +475,7 @@ const useGameState = () => {
             updatedCharacter.y < collectible.y + collectible.height &&
             updatedCharacter.y + updatedCharacter.height > collectible.y
           ) {
-            // Collect item
+            // Collect item and play sound (sound will be handled in the Game component)
             return {
               collectibles: [...acc.collectibles, { ...collectible, isCollected: true }],
               score: acc.score + collectible.value
@@ -504,7 +532,9 @@ const useGameState = () => {
     updateGameState,
     resetGame,
     addObstacles,
-    addScore
+    addScore,
+    addCoins,
+    collectCoin
   };
 };
 
