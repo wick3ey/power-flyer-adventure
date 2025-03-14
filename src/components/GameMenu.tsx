@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Award, Info, Settings, X, User } from 'lucide-react';
-import CharacterSelection, { CharacterType } from './CharacterSelection';
+import CharacterSelection from './CharacterSelection';
+import { useGameContext } from '../contexts/GameContext';
 
 interface GameMenuProps {
   onStart: () => void;
@@ -10,8 +11,6 @@ interface GameMenuProps {
   onShowTutorial: () => void;
   onShowSettings: () => void;
   highScore: number;
-  selectedCharacter?: CharacterType;
-  onSelectCharacter?: (character: CharacterType) => void;
 }
 
 const GameMenu: React.FC<GameMenuProps> = ({
@@ -20,10 +19,9 @@ const GameMenu: React.FC<GameMenuProps> = ({
   onShowTutorial,
   onShowSettings,
   highScore,
-  selectedCharacter = 'bird',
-  onSelectCharacter = () => {}
 }) => {
   const [showCharacterSelection, setShowCharacterSelection] = useState(false);
+  const { selectedCharacter, setSelectedCharacter } = useGameContext();
 
   return (
     <>
@@ -101,7 +99,7 @@ const GameMenu: React.FC<GameMenuProps> = ({
       {showCharacterSelection && (
         <CharacterSelection 
           selectedCharacter={selectedCharacter}
-          onSelectCharacter={onSelectCharacter}
+          onSelectCharacter={setSelectedCharacter}
           onClose={() => setShowCharacterSelection(false)}
         />
       )}
