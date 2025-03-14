@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from "sonner";
-import { PowerUpType, ObstacleType, DifficultyLevel } from '../utils/gameUtils';
+import { PowerUpType, ObstacleType, DifficultyLevel, generateId } from '../utils/gameUtils';
 import useGamePhysics from './useGamePhysics';
+import useSoundEffects from './useSoundEffects';
 
 // Define the types for our game state
 export interface Character {
@@ -169,6 +170,9 @@ const useGameState = () => {
   
   // Initialize game physics
   const physics = useGamePhysics();
+  
+  // Initialize sound effects
+  const { playJumpSound, playCoinSound } = useSoundEffects();
 
   // Load high score from local storage
   useEffect(() => {
@@ -305,6 +309,9 @@ const useGameState = () => {
       // Don't allow jumps if game is paused or over
       if (!prev.isPlaying || prev.isPaused || prev.isGameOver) return prev;
       
+      // Play jump sound when jumping
+      playJumpSound();
+      
       return {
         ...prev,
         character: {
@@ -314,7 +321,7 @@ const useGameState = () => {
         }
       };
     });
-  }, []);
+  }, [playJumpSound]);
 
   // Add obstacles to the game
   const addObstacles = useCallback((obstacles: Obstacle[]) => {
@@ -322,6 +329,61 @@ const useGameState = () => {
       ...prev,
       obstacles: [...prev.obstacles, ...obstacles]
     }));
+  }, []);
+  
+  // Add coins to the game - new function
+  const addCoins = useCallback((coins: Collectible[]) => {
+    setGameState(prev => ({
+      ...prev,
+      collectibles: [...prev.collectibles, ...coins]
+    }));
+  }, []);
+  
+  // Generate coins between obstacles
+  const generateCoins = useCallback((topPipe: Obstacle, bottomPipe: Obstacle, difficulty: number) => {
+    // Calculate gap center
+    const gapTop = topPipe.y + topPipe.height;
+    const gapBottom = bottomPipe.y;
+    const gapHeight = gapBottom - gapTop;
+    const gapCenter = gapTop + gapHeight / 2;
+    
+    // Generate 1-3 coins in the gap
+    const coinCount = Math.min(3, Math.max(1, Math.floor(difficulty)));
+    const coins: Collectible[] = [];
+    
+    // Coin properties
+    const coinSize = 30;
+    const coinX = topPipe.x + topPipe.width / 2; // Place coins in middle of pipe opening
+    
+    if (coinCount === 1) {
+      // Just one coin in the center
+      coins.push({
+        id: generateId(),
+        x: coinX,
+        y: gapCenter - coinSize / 2,
+        width: coinSize,
+        height: coinSize,
+        value: 10,
+        isCollected: false
+      });
+    } else {
+      // Multiple coins in a line
+      const spacing = gapHeight / (coinCount + 1);
+      
+      for (let i = 0; i < coinCount; i++) {
+        coins.push({
+          id: generateId(),
+          x: coinX,
+          y: gapTop + spacing * (i + 1) - coinSize / 2,
+          width: coinSize,
+          height: coinSize,
+          value: 10,
+          isCollected: false
+        });
+      }
+    }
+    
+    return coins;
   }, []);
 
   // Add to score
@@ -447,7 +509,15 @@ const useGameState = () => {
             updatedCharacter.y < collectible.y + collectible.height &&
             updatedCharacter.y + updatedCharacter.height > collectible.y
           ) {
-            // Collect item
+            // Collect item and play coin sound
+            playCoinSound();
+            
+            // Show toast for coin collection
+            toast.success(`+${collectible.value} points!`, {
+              duration: 1000,
+              position: "top-center"
+            });
+            
             return {
               collectibles: [...acc.collectibles, { ...collectible, isCollected: true }],
               score: acc.score + collectible.value
@@ -479,7 +549,7 @@ const useGameState = () => {
         activePowerUps,
       };
     });
-  }, [gameState.isPlaying, gameState.isPaused, physics]);
+  }, [gameState.isPlaying, gameState.isPaused, physics, playCoinSound]);
 
   // Reset game to initial state
   const resetGame = useCallback(() => {
@@ -503,6 +573,8 @@ const useGameState = () => {
     updateGameState,
     resetGame,
     addObstacles,
+    addCoins,
+    generateCoins,
     addScore
   };
 };

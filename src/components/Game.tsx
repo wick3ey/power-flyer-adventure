@@ -1,20 +1,17 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
-
+import React, { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import GameCanvas from './GameCanvas';
+import GameMenu from './GameMenu';
+import GameControls from './GameControls';
+import ScorePanel from './ScorePanel';
+import LevelSelect from './LevelSelect';
 import useGameState from '../hooks/useGameState';
 import useGameControls from '../hooks/useGameControls';
-import useGamePhysics from '../hooks/useGamePhysics';
+import useMobile from '../hooks/use-mobile';
+import { Dialog } from './ui/dialog';
+import { Button } from './ui/button';
 
-import GameCanvas from './GameCanvas';
-import ScorePanel from './ScorePanel';
-import GameControls from './GameControls';
-import GameMenu from './GameMenu';
-import LevelSelect from './LevelSelect';
-
-import { generateId } from '../utils/gameUtils';
-
-const Game = () => {
+const Game: React.FC = () => {
   // Game state and controls
   const {
     gameState,
@@ -27,7 +24,8 @@ const Game = () => {
     updateGameState,
     resetGame,
     addScore,
-    addObstacles
+    addObstacles,
+    addCoins
   } = useGameState();
   
   // Game physics
@@ -281,6 +279,54 @@ const Game = () => {
       setGameStartTime(Date.now());
     }, 100);
   };
+  
+  // Generate coins between the pipes
+  const generateCoins = (topPipe: any, bottomPipe: any, difficulty: number) => {
+    const coins = [];
+    const coinFrequency = 1000 - (difficulty * 100); // Decrease coin frequency with difficulty
+    
+    for (let i = 0; i < coinFrequency; i++) {
+      const x = Math.random() * (window.innerWidth - 100) + 50;
+      const y = Math.random() * (topPipe.y - bottomPipe.y - 100) + bottomPipe.y + 50;
+      coins.push({ x, y });
+    }
+    
+    return coins;
+  };
+  
+  useEffect(() => {
+    if (!gameState.isPlaying || gameState.isPaused) return;
+    
+    const obstacleInterval = setInterval(() => {
+      // Generate new obstacles based on difficulty and progress
+      const level = Math.max(1, gameState.level);
+      const difficulty = level * 0.5; // Scale difficulty with level
+      
+      // Generate obstacles
+      const newObstacles = physics.generateFlappyObstacles(
+        window.innerWidth, 
+        window.innerHeight, 
+        difficulty
+      );
+      
+      // Add obstacles to game
+      addObstacles(newObstacles);
+      
+      // Generate coins between the pipes
+      if (newObstacles.length >= 2) {
+        const topPipe = newObstacles[0];
+        const bottomPipe = newObstacles[1];
+        
+        // Generate coins
+        const coins = generateCoins(topPipe, bottomPipe, difficulty);
+        
+        // Add coins to game
+        addCoins(coins);
+      }
+    }, Math.max(1500 - gameState.level * 100, 1000)); // Faster obstacle generation at higher levels
+    
+    return () => clearInterval(obstacleInterval);
+  }, [gameState.isPlaying, gameState.isPaused, gameState.level, addObstacles, addCoins, physics, generateCoins]);
   
   return (
     <div className="relative w-full h-full overflow-hidden">

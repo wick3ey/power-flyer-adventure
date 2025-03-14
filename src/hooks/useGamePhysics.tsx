@@ -1,4 +1,3 @@
-
 import { useCallback } from 'react';
 import { Character, Obstacle, PowerUp, Collectible } from './useGameState';
 import { checkCollision, clamp, lerp, ObstacleType, generateId } from '../utils/gameUtils';
