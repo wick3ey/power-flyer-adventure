@@ -1,9 +1,9 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CharacterComponent from './Character';
 import ObstacleComponent from './Obstacle';
 import PowerUpComponent from './PowerUp';
-import Coin from './Coin';
 import { GameState } from '../hooks/useGameState';
 
 // Bakgrundsbilder för olika nivåer
@@ -278,10 +278,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
       
       {gameState.powerUps.map((powerUp) => (
         <PowerUpComponent key={powerUp.id} powerUp={powerUp} />
-      ))}
-      
-      {gameState.collectibles.map((coin) => (
-        <Coin key={coin.id} coin={coin} />
       ))}
       
       {/* Render karaktär */}

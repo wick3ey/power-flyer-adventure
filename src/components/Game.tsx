@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { Coins } from 'lucide-react';
 
 import useGameState from '../hooks/useGameState';
 import useGameControls from '../hooks/useGameControls';
@@ -12,14 +11,10 @@ import ScorePanel from './ScorePanel';
 import GameControls from './GameControls';
 import GameMenu from './GameMenu';
 import LevelSelect from './LevelSelect';
-import Coin from './Coin';
 
 import { generateId } from '../utils/gameUtils';
-import { preloadSounds, playCoinSound } from '../utils/soundUtils';
 
 const Game = () => {
-  console.log("Game component rendering");
-  
   // Game state and controls
   const {
     gameState,
@@ -32,10 +27,7 @@ const Game = () => {
     updateGameState,
     resetGame,
     addScore,
-    addObstacles,
-    addCoins,
-    setGameState,
-    collectCoin
+    addObstacles
   } = useGameState();
   
   // Game physics
@@ -53,9 +45,6 @@ const Game = () => {
   // Track the last obstacle's x position to prevent spawning too close
   const [lastObstacleX, setLastObstacleX] = useState<number | null>(null);
   
-  // Track collected coins
-  const [coinsCollected, setCoinsCollected] = useState(0);
-  
   // UI state
   const [showMenu, setShowMenu] = useState(true);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
@@ -65,38 +54,6 @@ const Game = () => {
   
   // Track time played for difficulty scaling
   const [gameStartTime, setGameStartTime] = useState(0);
-
-  // Force coin generation flag - will ensure coins are generated
-  const [forceGenerateCoins, setForceGenerateCoins] = useState(false);
-  
-  // Track processed obstacle pairs to avoid duplicate coin generation
-  const [processedObstaclePairs, setProcessedObstaclePairs] = useState<string[]>([]);
-
-  // Preload game sounds - ensure coin sound is loaded
-  useEffect(() => {
-    preloadSounds(['/coin-sound.mp3']);
-  }, []);
-  
-  // Function to prune coins that have moved off screen
-  const pruneOffscreenCoins = useCallback(() => {
-    if (!gameState.collectibles || gameState.collectibles.length === 0) return;
-    
-    const updatedCollectibles = gameState.collectibles.filter(coin => {
-      // Keep collected coins (for potential animation)
-      if (coin.isCollected) return false; // Remove collected coins
-      
-      // Remove coins that have gone off the left edge of the screen
-      return coin.x > -100;
-    });
-    
-    // Only update if we actually pruned some coins
-    if (updatedCollectibles.length !== gameState.collectibles.length) {
-      setGameState(prev => ({
-        ...prev,
-        collectibles: updatedCollectibles
-      }));
-    }
-  }, [gameState.collectibles, setGameState]);
   
   // Handle keyboard and touch controls
   const { isMobile } = useGameControls({
@@ -121,47 +78,15 @@ const Game = () => {
     },
     onReset: resetGame
   });
-
-  // Memoize handleCoinCollect to prevent recreation on every render
-  const handleCoinCollect = useCallback((coin: any) => {
-    console.log("Coin collection triggered!", coin);
-    
-    if (!coin.isCollected) {
-      collectCoin(coin.id);
-      
-      // Increment collected coins counter
-      setCoinsCollected(prev => prev + 1);
-      
-      // Visual feedback based on coin value
-      let toastColor = "yellow";
-      let coinMessage = "Coin collected! +10";
-      
-      if (coin.value >= 100) {
-        toastColor = "purple";
-        coinMessage = "Jackpot! +100";
-      } else if (coin.value >= 50) {
-        toastColor = "orange";
-        coinMessage = "Bonus Coin! +50";
-      } else if (coin.value >= 25) {
-        toastColor = "blue";
-        coinMessage = "Special Coin! +25";
-      }
-      
-      // Always show toast for coin collection
-      toast.success(coinMessage, {
-        icon: <Coins className={`text-${toastColor}-400`} />,
-        duration: 1500
-      });
-    }
-  }, [collectCoin]);
   
-  // Update difficulty based on score and time - optimized dependency array
+  // Update difficulty based on score and time
   useEffect(() => {
     if (gameState.isPlaying && !gameState.isPaused) {
       // Calculate time played in seconds
       const timePlayed = (Date.now() - gameStartTime) / 1000;
       
       // Increase difficulty based on both score and time played
+      // Base difficulty starts at 1, increases more rapidly as score/time goes up
       const scoreFactor = gameState.score > 0 ? Math.log(gameState.score + 1) * 0.3 : 0;
       const timeFactor = timePlayed > 0 ? Math.log(timePlayed + 1) * 0.2 : 0;
       
@@ -179,15 +104,9 @@ const Game = () => {
         }
       }
     }
-  }, [
-    gameState.isPlaying, 
-    gameState.isPaused, 
-    gameState.score, 
-    gameStartTime, 
-    currentDifficulty
-  ]);
+  }, [gameState.isPlaying, gameState.isPaused, gameState.score, gameStartTime, currentDifficulty]);
   
-  // Game loop - FIXED to prevent infinite rendering
+  // Game loop
   useEffect(() => {
     // Only run the game loop if the game is playing and not paused
     if (!gameState.isPlaying || gameState.isPaused) {
@@ -264,187 +183,7 @@ const Game = () => {
       }
     };
     
-    // Completely rewritten coin generation function for reliability
-    const generateCoins = () => {
-      // Trigger coin generation every 60 frames (approximately once per second)
-      if (Math.random() < 0.1 || forceGenerateCoins) {
-        setForceGenerateCoins(false);
-        
-        // Find valid obstacle pairs to place coins between
-        const obstaclePairs = [];
-        const pairGroups = new Map();
-        
-        // Group obstacles by pair ID
-        gameState.obstacles.forEach(obstacle => {
-          if (obstacle.x > 0 && obstacle.x < window.innerWidth * 1.2) {
-            // Extract the pair ID from the obstacle ID
-            const idParts = obstacle.id.split('-');
-            let pairId = '';
-            
-            if (idParts.length >= 3) {
-              // For formats like "pipe-top-12345-678"
-              pairId = idParts.slice(2).join('-');
-            } else {
-              // For other formats, use the whole ID
-              pairId = obstacle.id;
-            }
-            
-            if (!pairGroups.has(pairId)) {
-              pairGroups.set(pairId, []);
-            }
-            pairGroups.get(pairId).push(obstacle);
-          }
-        });
-        
-        // Process pairs looking for top and bottom pipes
-        pairGroups.forEach((obstacles, pairId) => {
-          // Skip already processed pairs
-          if (processedObstaclePairs.includes(pairId)) {
-            return;
-          }
-          
-          // Only care about pairs with exactly 2 obstacles (top and bottom pipe)
-          if (obstacles.length === 2) {
-            // Sort by Y position to get top and bottom
-            obstacles.sort((a, b) => a.y - b.y);
-            
-            // Calculate gap between obstacles
-            const topObstacle = obstacles[0];
-            const bottomObstacle = obstacles[1];
-            const gapTop = topObstacle.y + topObstacle.height;
-            const gapBottom = bottomObstacle.y;
-            const gapHeight = gapBottom - gapTop;
-            
-            // Ensure sufficient gap for a coin plus padding
-            const minGapRequired = 70; // Coin size + padding
-            
-            if (gapHeight >= minGapRequired) {
-              obstaclePairs.push({
-                pairId,
-                topObstacle,
-                bottomObstacle,
-                gapTop,
-                gapBottom,
-                gapHeight
-              });
-              
-              // Mark this pair as processed
-              setProcessedObstaclePairs(prev => [...prev, pairId]);
-            }
-          }
-        });
-        
-        // For each valid pair, generate coins if they don't already exist
-        obstaclePairs.forEach(pair => {
-          // Check if we've already generated coins for this pair
-          const coinExists = gameState.collectibles.some(coin => 
-            coin.id.includes(pair.pairId) || coin.id === `coin-${pair.pairId}`
-          );
-          
-          if (!coinExists) {
-            console.log("Generating coin for pair:", pair.pairId);
-            
-            // Calculate coin position - centered in the gap
-            const coinSize = 40; // Standard coin size
-            const coinX = pair.topObstacle.x + (pair.topObstacle.width / 2) - (coinSize / 2);
-            
-            // Vertical position - centered in the gap
-            const coinY = pair.gapTop + (pair.gapHeight / 2) - (coinSize / 2);
-            
-            // Create the coin with random value (occasionally special coins)
-            let coinValue = 10; // Default value
-            const specialCoinRoll = Math.random();
-            
-            if (specialCoinRoll > 0.95) {
-              coinValue = 100; // Rare jackpot coin (5% chance)
-            } else if (specialCoinRoll > 0.85) {
-              coinValue = 50; // Uncommon bonus coin (10% chance)
-            } else if (specialCoinRoll > 0.7) {
-              coinValue = 25; // Common special coin (15% chance)
-            }
-            
-            const newCoin = {
-              id: `coin-${pair.pairId}`,
-              x: coinX,
-              y: coinY,
-              width: coinSize,
-              height: coinSize,
-              value: coinValue,
-              isCollected: false
-            };
-            
-            // Add the coin to the game state
-            addCoins([newCoin]);
-          }
-        });
-      }
-    };
-    
-    // Enhanced coin collection detection
-    const checkCoinCollections = () => {
-      // Skip if there are no collectibles or game is paused
-      if (gameState.collectibles.length === 0 || gameState.isPaused) return;
-      
-      const { character, collectibles } = gameState;
-      
-      // Check each uncollected coin for collision with character
-      const updatedCollectibles = collectibles.map(coin => {
-        // Skip already collected coins
-        if (coin.isCollected) return coin;
-        
-        // Check for collision with improved hit detection (slightly larger hitbox for better UX)
-        const hitboxPadding = 5; // Expand hitbox by 5px in each direction
-        if (
-          character.x < coin.x + coin.width + hitboxPadding &&
-          character.x + character.width + hitboxPadding > coin.x &&
-          character.y < coin.y + coin.height + hitboxPadding &&
-          character.y + character.height + hitboxPadding > coin.y
-        ) {
-          console.log("Coin collected via collision detection!");
-          playCoinSound();
-          
-          // Update score directly in useGameState
-          addScore(coin.value);
-          
-          // Increment coin counter
-          setCoinsCollected(prev => prev + 1);
-          
-          // Show collection toast
-          let toastMessage = "Coin collected! +10";
-          let iconColor = "text-yellow-400";
-          
-          if (coin.value >= 100) {
-            toastMessage = "Jackpot! +100";
-            iconColor = "text-purple-400";
-          } else if (coin.value >= 50) {
-            toastMessage = "Bonus Coin! +50";
-            iconColor = "text-orange-400";
-          } else if (coin.value >= 25) {
-            toastMessage = "Special Coin! +25";
-            iconColor = "text-blue-400";
-          }
-          
-          toast.success(toastMessage, {
-            icon: <Coins className={iconColor} />,
-            duration: 1500
-          });
-          
-          return { ...coin, isCollected: true };
-        }
-        
-        return coin;
-      });
-      
-      // Update collectibles state if there were changes
-      if (JSON.stringify(updatedCollectibles) !== JSON.stringify(collectibles)) {
-        setGameState(prev => ({
-          ...prev,
-          collectibles: updatedCollectibles
-        }));
-      }
-    };
-    
-    // Check for coin collections
+    // Check if obstacles have been passed for scoring
     const checkPassedObstacles = () => {
       const newPassedIds: string[] = [...passedObstacleIds];
       let scoreAdded = false;
@@ -485,15 +224,6 @@ const Game = () => {
       // Generate obstacles 
       generateObstacles(timestamp);
       
-      // Generate coins between obstacles
-      generateCoins();
-      
-      // Check for coin collections
-      checkCoinCollections();
-      
-      // Prune off-screen coins
-      pruneOffscreenCoins();
-      
       // Update obstacle tracking
       updateLastObstacleX();
       
@@ -508,52 +238,41 @@ const Game = () => {
     };
     
     // Start the game loop
-    console.log("Starting game loop");
     animationFrameRef.current = requestAnimationFrame(gameLoop);
     
     // Clean up on unmount or when game state changes
     return () => {
-      console.log("Cleaning up game loop");
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
   }, [
     gameState.isPlaying, 
-    gameState.isPaused,
-    gameState.obstacles,
-    gameState.character,
-    gameState.collectibles,
-    updateGameState,
-    physics,
-    addObstacles,
-    addScore,
-    addCoins,
-    pruneOffscreenCoins,
-    passedObstacleIds,
+    gameState.isPaused, 
+    updateGameState, 
+    gameState.obstacles, 
+    gameState.character, 
+    physics, 
+    addObstacles, 
+    addScore, 
+    passedObstacleIds, 
     lastObstacleTime,
-    lastObstacleX,
     currentDifficulty,
-    forceGenerateCoins,
-    processedObstaclePairs,
-    setGameState
+    lastObstacleX
   ]);
   
-  // Reset state when game resets
+  // Reset passed obstacles when game resets
   useEffect(() => {
     if (!gameState.isPlaying) {
       setPassedObstacleIds([]);
       setLastObstacleTime(0);
       setCurrentDifficulty(1);
-      setLastObstacleX(null);
-      setCoinsCollected(0);
-      setProcessedObstaclePairs([]);
-      setForceGenerateCoins(false);
+      setLastObstacleX(null); // Reset obstacle X position tracking
     }
   }, [gameState.isPlaying]);
   
   // Handle level selection
-  const handleLevelSelect = useCallback((levelId: number) => {
+  const handleLevelSelect = (levelId: number) => {
     initializeLevel(levelId);
     setShowLevelSelect(false);
     setShowMenu(false);
@@ -561,46 +280,20 @@ const Game = () => {
       startGame();
       setGameStartTime(Date.now());
     }, 100);
-  }, [initializeLevel, startGame]);
-  
-  // Enhanced coin rendering with improved visibility
-  const renderCoins = useCallback(() => {
-    // Extra check to ensure we have coins to render
-    if (!gameState.collectibles || gameState.collectibles.length === 0) {
-      // If no coins are found during gameplay, force generation
-      if (gameState.isPlaying && !gameState.isPaused) {
-        setForceGenerateCoins(true);
-      }
-      return null;
-    }
-    
-    console.log(`Rendering ${gameState.collectibles.length} coins`);
-    
-    return gameState.collectibles.map(coin => (
-      <Coin 
-        key={coin.id} 
-        coin={coin} 
-        onCollect={handleCoinCollect} 
-      />
-    ));
-  }, [gameState.collectibles, gameState.isPlaying, gameState.isPaused, handleCoinCollect]);
+  };
   
   return (
     <div className="relative w-full h-full overflow-hidden">
       {/* Game canvas */}
       <GameCanvas gameState={gameState} />
       
-      {/* Render coins directly in the game div for better interaction */}
-      {gameState.isPlaying && !gameState.isPaused && renderCoins()}
-      
-      {/* Score panel with coins display */}
+      {/* Score panel with difficulty indicator */}
       {gameState.isPlaying && (
         <ScorePanel 
           score={gameState.score}
           highScore={gameState.highScore}
           lives={gameState.lives}
           level={gameState.level}
-          coins={coinsCollected}
         />
       )}
       
@@ -666,7 +359,7 @@ const Game = () => {
         )}
       </AnimatePresence>
       
-      {/* Game over overlay with coin stats */}
+      {/* Game over overlay */}
       <AnimatePresence>
         {gameState.isGameOver && (
           <motion.div 
@@ -688,13 +381,6 @@ const Game = () => {
                 <div className="chip bg-yellow-100 text-yellow-800 mb-4">New High Score!</div>
               )}
               
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Coins className="w-5 h-5 text-yellow-400" />
-                <p className="text-sm text-gray-700">
-                  Coins collected: <span className="font-bold">{coinsCollected}</span>
-                </p>
-              </div>
-              
               <p className="text-sm text-gray-400 mb-4">
                 You reached difficulty level {Math.floor(currentDifficulty)}
               </p>
@@ -704,7 +390,6 @@ const Game = () => {
                   onClick={() => {
                     resetGame();
                     setShowMenu(true);
-                    setCoinsCollected(0);
                   }}
                   className="game-button-secondary flex-1"
                 >
@@ -714,7 +399,6 @@ const Game = () => {
                 <button 
                   onClick={() => {
                     initializeLevel(gameState.level);
-                    setCoinsCollected(0);
                     setTimeout(() => {
                       startGame();
                       setGameStartTime(Date.now());

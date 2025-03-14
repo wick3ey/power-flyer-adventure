@@ -324,53 +324,15 @@ const useGameState = () => {
     }));
   }, []);
 
-  // Enhanced coin spawning with more variety
-  const addCoins = useCallback((coins: Collectible[]) => {
-    console.log("Adding coins:", coins);
-    setGameState(prev => ({
-      ...prev,
-      collectibles: [...prev.collectibles, ...coins]
-    }));
-  }, []);
-
-  // Improved coin collection with log tracking
-  const collectCoin = useCallback((coinId: string) => {
-    console.log("Collecting coin with ID:", coinId);
-    
-    setGameState(prev => {
-      // Find the coin first to check if it exists and isn't collected
-      const targetCoin = prev.collectibles.find(c => c.id === coinId);
-      
-      if (!targetCoin || targetCoin.isCollected) {
-        console.log("Coin already collected or not found");
-        return prev; // No changes needed
-      }
-      
-      console.log(`Collecting coin worth ${targetCoin.value} points`);
-      
-      // Update all collectibles
-      const updatedCollectibles = prev.collectibles.map(coin => {
-        if (coin.id === coinId) {
-          return { ...coin, isCollected: true };
-        }
-        return coin;
-      });
-      
-      // Return updated state
-      return {
-        ...prev,
-        collectibles: updatedCollectibles,
-        score: prev.score + targetCoin.value
-      };
-    });
-  }, []);
-
   // Add to score
   const addScore = useCallback((points: number) => {
     setGameState(prev => ({
       ...prev,
       score: prev.score + points
     }));
+    
+    // Optional: play a sound or show a toast for feedback
+    // toast.success(`+${points} points!`);
   }, []);
 
   // Update game state - called on each animation frame
@@ -475,7 +437,7 @@ const useGameState = () => {
         { powerUps: [] as PowerUp[], activePowerUps: [...prev.activePowerUps] }
       );
 
-      // Check for collisions with collectibles (coins)
+      // Check for collisions with collectibles
       const { collectibles, score } = prev.collectibles.reduce(
         (acc, collectible) => {
           if (
@@ -485,7 +447,7 @@ const useGameState = () => {
             updatedCharacter.y < collectible.y + collectible.height &&
             updatedCharacter.y + updatedCharacter.height > collectible.y
           ) {
-            // Collect item and play sound (sound will be handled in the Game component)
+            // Collect item
             return {
               collectibles: [...acc.collectibles, { ...collectible, isCollected: true }],
               score: acc.score + collectible.value
@@ -532,7 +494,6 @@ const useGameState = () => {
 
   return {
     gameState,
-    setGameState,
     initializeLevel,
     startGame,
     pauseGame,
@@ -542,9 +503,7 @@ const useGameState = () => {
     updateGameState,
     resetGame,
     addObstacles,
-    addScore,
-    addCoins,
-    collectCoin
+    addScore
   };
 };
 
