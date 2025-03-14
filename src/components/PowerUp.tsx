@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { PowerUp } from '../hooks/useGameState';
 import { PowerUpType } from '../utils/gameUtils';
@@ -53,7 +54,7 @@ const PowerUpComponent: React.FC<PowerUpProps> = ({ powerUp }) => {
   };
 
   const { icon, bgColor, glow, particles } = getPowerUpContent();
-  
+
   return (
     <motion.div 
       className={`absolute rounded-full ${bgColor} shadow-lg shadow-${glow} 

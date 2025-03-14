@@ -83,9 +83,6 @@ export interface GameState {
   levels: GameLevel[];
   activeLevel: GameLevel | null;
   activePowerUps: PowerUpType[];
-  backgroundId: number;
-  lastLevelUpScore: number;
-  lastSpeedUpScore: number;
 }
 
 // Initial game state
@@ -119,9 +116,6 @@ const initialGameState: GameState = {
   levels: [],
   activeLevel: null,
   activePowerUps: [],
-  backgroundId: 1,
-  lastLevelUpScore: 0,
-  lastSpeedUpScore: 0,
 };
 
 // Sample level data (we'll expand this later)
@@ -224,11 +218,7 @@ const useGameState = () => {
       level: levelId,
       lives: 3,
       score: 0,
-      activePowerUps: [],
-      backgroundId: Math.floor(Math.random() * 5) + 1, // Random background from 1-5
-      lastLevelUpScore: 0,
-      lastSpeedUpScore: 0,
-      gameSpeed: 1, // Reset game speed
+      activePowerUps: []
     }));
 
     toast.success(`Level ${levelId}: ${level.name} loaded!`);
@@ -398,56 +388,13 @@ const useGameState = () => {
 
   // Add to score
   const addScore = useCallback((points: number) => {
-    setGameState(prev => {
-      const newScore = prev.score + points;
-      
-      // Check if we should level up (every 100 points)
-      const shouldLevelUp = Math.floor(newScore / 100) > Math.floor(prev.lastLevelUpScore / 100);
-      
-      // Check if we should speed up (every 30 points)
-      const shouldSpeedUp = Math.floor(newScore / 30) > Math.floor(prev.lastSpeedUpScore / 30);
-      
-      // If we should level up, change the background
-      if (shouldLevelUp) {
-        // Pick a new random background (1-5)
-        const newBackgroundId = Math.floor(Math.random() * 5) + 1;
-        toast.success(`Level Up! 🚀 +${points} $MOON`, { 
-          duration: 3000,
-          position: "top-center",
-          className: "font-bold text-lg" 
-        });
-        
-        return {
-          ...prev,
-          score: newScore,
-          backgroundId: newBackgroundId,
-          lastLevelUpScore: newScore
-        };
-      }
-      
-      // If we should speed up, increase the game speed
-      if (shouldSpeedUp) {
-        // Increase speed by 5% each time, capped at 2x base speed
-        const newSpeed = Math.min(2, prev.gameSpeed * 1.05);
-        toast.info(`Speed increased! 💨 Game getting faster!`, { 
-          duration: 2000,
-          position: "top-center" 
-        });
-        
-        return {
-          ...prev,
-          score: newScore,
-          gameSpeed: newSpeed,
-          lastSpeedUpScore: newScore
-        };
-      }
-      
-      // Otherwise just update the score
-      return {
-        ...prev,
-        score: newScore
-      };
-    });
+    setGameState(prev => ({
+      ...prev,
+      score: prev.score + points
+    }));
+    
+    // Optional: play a sound or show a toast for feedback
+    // toast.success(`+${points} points!`);
   }, []);
 
   // Update game state - called on each animation frame
@@ -585,12 +532,10 @@ const useGameState = () => {
       );
 
       // Move obstacles and remove ones that have gone off screen
-      // Update their speed based on the current game speed
       const obstacles = prev.obstacles
         .map(obstacle => ({
           ...obstacle,
-          // Apply the current game speed to the obstacle's base speed
-          x: obstacle.x - (obstacle.speed * prev.gameSpeed)
+          x: obstacle.x - obstacle.speed
         }))
         .filter(obstacle => obstacle.x + obstacle.width > -100); // Keep obstacles slightly beyond the left edge
 
@@ -611,8 +556,7 @@ const useGameState = () => {
     setGameState(prev => ({
       ...initialGameState,
       highScore: prev.highScore,
-      levels: prev.levels,
-      backgroundId: Math.floor(Math.random() * 5) + 1 // Random background from 1-5
+      levels: prev.levels
     }));
     
     toast.info("Game reset!");
