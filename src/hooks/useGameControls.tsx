@@ -6,7 +6,6 @@ import useSoundEffects from './useSoundEffects';
 interface GameControlsProps {
   isPlaying: boolean;
   isPaused: boolean;
-  isGameOver: boolean;
   onJump: () => void;
   onPause: () => void;
   onStart: () => void;
@@ -16,7 +15,6 @@ interface GameControlsProps {
 const useGameControls = ({
   isPlaying,
   isPaused,
-  isGameOver,
   onJump,
   onPause,
   onStart,
@@ -25,89 +23,75 @@ const useGameControls = ({
   const isMobile = useIsMobile();
   const { playJumpSound } = useSoundEffects();
 
-  // Wrapper for jump function that plays sound
+  // Wrapper för hopp-funktionen som spelar ljud
   const handleJump = useCallback(() => {
     playJumpSound();
     onJump();
   }, [onJump, playJumpSound]);
 
-  // Setup keyboard controls
-  const setupKeyboardControls = useCallback(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
-      if (!isPlaying) {
-        // If game is not playing, space or enter starts the game
-        if (event.code === 'Space' || event.code === 'Enter') {
-          onStart();
-        }
-        return;
+  // Handle keyboard controls
+  const handleKeyPress = useCallback((event: KeyboardEvent) => {
+    if (!isPlaying) {
+      // If game is not playing, space or enter starts the game
+      if (event.code === 'Space' || event.code === 'Enter') {
+        onStart();
       }
+      return;
+    }
 
-      // Game controls when playing
-      switch (event.code) {
-        case 'Space':
-        case 'ArrowUp':
-        case 'KeyW':
-          // Prevent default space action (page scroll)
-          event.preventDefault();
-          handleJump();
-          break;
-        case 'Escape':
-        case 'KeyP':
-          onPause();
-          break;
-        case 'KeyR':
-          onReset();
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    // Game controls when playing
+    switch (event.code) {
+      case 'Space':
+      case 'ArrowUp':
+      case 'KeyW':
+        // Prevent default space action (page scroll)
+        event.preventDefault();
+        handleJump(); // Använd vår nya wrapper istället för direkt onJump
+        break;
+      case 'Escape':
+      case 'KeyP':
+        onPause();
+        break;
+      case 'KeyR':
+        onReset();
+        break;
+      default:
+        break;
+    }
   }, [isPlaying, handleJump, onPause, onReset, onStart]);
 
-  // Setup touch controls for mobile
-  const setupTouchControls = useCallback(() => {
-    if (!isMobile) return () => {};
+  // Handle touch controls for mobile
+  const handleTouchStart = useCallback(() => {
+    if (!isPlaying) {
+      onStart();
+      return;
+    }
 
-    const handleTouchStart = () => {
-      if (!isPlaying) {
-        onStart();
-        return;
-      }
-
-      if (!isPaused) {
-        handleJump();
-      }
-    };
-
-    document.addEventListener('touchstart', handleTouchStart);
-    return () => document.removeEventListener('touchstart', handleTouchStart);
-  }, [isPlaying, isPaused, handleJump, onStart, isMobile]);
-
-  // Cleanup all event listeners
-  const cleanupControls = useCallback(() => {
-    // This will be called when the component unmounts
-    // The actual cleanup happens in the returned functions from setupKeyboardControls and setupTouchControls
-  }, []);
+    if (!isPaused) {
+      handleJump(); // Använd vår nya wrapper istället för direkt onJump
+    }
+  }, [isPlaying, isPaused, handleJump, onStart]);
 
   useEffect(() => {
-    const keyboardCleanup = setupKeyboardControls();
-    const touchCleanup = setupTouchControls();
+    // Set up keyboard event listeners
+    window.addEventListener('keydown', handleKeyPress);
 
+    // Set up touch event listeners for mobile
+    if (isMobile) {
+      document.addEventListener('touchstart', handleTouchStart);
+    }
+
+    // Clean up event listeners
     return () => {
-      keyboardCleanup();
-      touchCleanup();
-      cleanupControls();
+      window.removeEventListener('keydown', handleKeyPress);
+      if (isMobile) {
+        document.removeEventListener('touchstart', handleTouchStart);
+      }
     };
-  }, [setupKeyboardControls, setupTouchControls, cleanupControls]);
+  }, [handleKeyPress, handleTouchStart, isMobile]);
 
   return {
-    isMobile,
-    setupKeyboardControls,
-    setupTouchControls,
-    cleanupControls
+    isMobile
   };
 };
 

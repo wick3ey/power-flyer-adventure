@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Collectible } from '../hooks/useGameState';
@@ -11,48 +12,39 @@ const Coin: React.FC<CoinProps> = ({ coin }) => {
 
   return (
     <motion.div
-      className="absolute z-10"
+      className="absolute pointer-events-none"
       style={{
         left: coin.x,
         top: coin.y,
         width: coin.width,
         height: coin.height,
+        zIndex: 10,
       }}
       animate={{
+        rotate: [0, 360],
         y: [0, -5, 0],
-        rotateY: [0, 180, 360],
       }}
       transition={{
+        rotate: {
+          duration: 3,
+          repeat: Infinity,
+          ease: "linear"
+        },
         y: {
-          repeat: Infinity,
           duration: 1.5,
-          ease: "easeInOut",
-        },
-        rotateY: {
           repeat: Infinity,
-          duration: 1.5,
-          ease: "linear",
-        },
+          ease: "easeInOut"
+        }
       }}
     >
-      <div className="w-full h-full relative">
-        {/* Coin outer glow */}
-        <div className="absolute inset-0 rounded-full bg-yellow-300 opacity-30 animate-pulse" 
-             style={{ transform: 'scale(1.2)' }} />
-        
-        {/* Coin body */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-300 border-2 border-yellow-600 shadow-lg">
-          {/* Inner coin details */}
-          <div className="absolute inset-2 rounded-full border-4 border-yellow-500/30" />
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-200/80 to-transparent" 
-               style={{ clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0% 100%)' }} />
-        </div>
-        
-        {/* Coin value */}
-        <div className="absolute inset-0 flex items-center justify-center text-yellow-800 font-bold text-xs">
-          {coin.value}
-        </div>
-      </div>
+      <img 
+        src="/lovable-uploads/87d0d465-179c-48b8-a9e1-69abbd3176e1.png" 
+        alt="Coin"
+        className="w-full h-full object-contain"
+      />
+      
+      {/* Glowing effect */}
+      <div className="absolute inset-0 rounded-full bg-yellow-400 opacity-20 blur-sm -z-10 animate-pulse"></div>
     </motion.div>
   );
 };
