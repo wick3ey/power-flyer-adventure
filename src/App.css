@@ -44,7 +44,9 @@
 
 /* Text shadow for better visibility on various backgrounds */
 .text-shadow-lg {
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5), 0 0 5px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5), 
+               0 0 5px rgba(0, 0, 0, 0.3), 
+               1px 1px 2px rgba(0, 0, 0, 0.7);
 }
 
 /* 3D shadow effect for crypto elements */
@@ -52,4 +54,37 @@
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 
               0 4px 6px -2px rgba(0, 0, 0, 0.1),
               0 0 15px 2px rgba(255, 215, 0, 0.15);
+}
+
+/* Glass effect styles */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+/* Professional glow effects */
+.neon-glow {
+  box-shadow: 0 0 5px #fff, 
+              0 0 10px #fff, 
+              0 0 15px #0073e6, 
+              0 0 20px #0073e6, 
+              0 0 25px #0073e6;
+}
+
+.premium-shadow {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+              0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* High-end crypto animation */
+.crypto-pulse {
+  animation: crypto-pulse 2s infinite ease-in-out;
+}
+
+@keyframes crypto-pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 215, 0, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); }
 }
