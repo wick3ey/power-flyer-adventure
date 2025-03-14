@@ -2,7 +2,6 @@
 import React from 'react';
 import { Obstacle } from '../hooks/useGameState';
 import { ObstacleType } from '../utils/gameUtils';
-import { motion } from 'framer-motion';
 
 interface ObstacleProps {
   obstacle: Obstacle;
@@ -32,7 +31,7 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
     width: obstacle.width,
     height: obstacle.height,
     borderRadius: obstacle.type === ObstacleType.STATIC ? '4px' : '3px',
-    boxShadow: '0 4px 10px rgba(0,0,0,0.5), inset 0px 0px 5px rgba(0,0,0,0.3)'
+    boxShadow: '0 4px 8px rgba(0,0,0,0.5)'
   };
 
   // For Flappy Bird style pipes, we need a cap on top
@@ -53,24 +52,24 @@ const ObstacleComponent: React.FC<ObstacleProps> = ({ obstacle }) => {
                boxShadow: '0 0 5px rgba(0,0,0,0.5)',
              }}
         >
-          {/* Inner highlight for cap - subtle, non-animated */}
+          {/* Subtle inner highlight for cap - not animated */}
           <div className="absolute inset-1 bg-gradient-to-b from-red-500/20 to-red-900/30 rounded-sm"></div>
         </div>
       )}
       
-      {/* Inner shadow for depth - solid look */}
-      <div className="absolute inset-0 rounded-sm bg-gradient-to-b from-white/10 to-black/20"></div>
+      {/* Static inner elements for depth without animations */}
+      <div className="absolute inset-0 rounded-sm bg-gradient-to-b from-white/5 to-black/10"></div>
       
-      {/* Surface pattern to add texture */}
-      <div className="absolute inset-0 opacity-20">
-        {[...Array(5)].map((_, i) => (
+      {/* Surface pattern to add texture - static */}
+      <div className="absolute inset-0 opacity-10">
+        {[...Array(3)].map((_, i) => (
           <div 
             key={i}
-            className="absolute h-1 bg-black/60"
+            className="absolute h-1 bg-black/80"
             style={{ 
               left: '0',
               right: '0',
-              top: `${(i + 1) * 20}%`,
+              top: `${(i + 1) * 25}%`,
             }}
           ></div>
         ))}

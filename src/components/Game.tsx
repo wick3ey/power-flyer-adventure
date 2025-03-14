@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { Coins } from 'lucide-react';
 
 import useGameState from '../hooks/useGameState';
 import useGameControls from '../hooks/useGameControls';
@@ -44,6 +45,9 @@ const Game = () => {
   
   // Track the last obstacle's x position to prevent spawning too close
   const [lastObstacleX, setLastObstacleX] = useState<number | null>(null);
+  
+  // Track collected coins
+  const [coinsCollected, setCoinsCollected] = useState(0);
   
   // UI state
   const [showMenu, setShowMenu] = useState(true);
@@ -183,6 +187,127 @@ const Game = () => {
       }
     };
     
+    // Generate coins between obstacles
+    const generateCoins = () => {
+      // Only generate coins if there are enough obstacles to place them between
+      if (gameState.obstacles.length < 2) return;
+      
+      // Find pairs of obstacles to place coins between
+      const obstaclesRight = gameState.obstacles.filter(o => o.x > window.innerWidth);
+      
+      // Group obstacles by their ID prefix to find pairs
+      const obstaclePairs = {};
+      obstaclesRight.forEach(o => {
+        const pairId = o.id.split('-').slice(0, 3).join('-');
+        if (!obstaclePairs[pairId]) {
+          obstaclePairs[pairId] = [];
+        }
+        obstaclePairs[pairId].push(o);
+      });
+      
+      // Place coins between each valid pair of obstacles
+      Object.values(obstaclePairs).forEach((pair: any) => {
+        if (pair.length !== 2) return;
+        
+        // Sort obstacles by y position (top pipe first, bottom pipe second)
+        pair.sort((a, b) => a.y - b.y);
+        
+        const [topPipe, bottomPipe] = pair;
+        
+        // Check if this pair already has coins
+        const pairId = topPipe.id.split('-').slice(0, 3).join('-');
+        const hasCoinsBetween = gameState.collectibles.some(c => 
+          c.id.includes(pairId)
+        );
+        
+        if (hasCoinsBetween) return;
+        
+        // Calculate the gap between pipes
+        const gapTop = topPipe.y + topPipe.height;
+        const gapBottom = bottomPipe.y;
+        const gapHeight = gapBottom - gapTop;
+        
+        // Only add coins if the gap is large enough
+        if (gapHeight < 100) return;
+        
+        // Calculate number of coins to place (1-3 based on gap size)
+        const coinCount = Math.min(3, Math.floor(gapHeight / 50));
+        
+        // Create coins
+        const coinSize = 30;
+        const coinX = topPipe.x + (topPipe.width / 2) - (coinSize / 2);
+        const coins = [];
+        
+        for (let i = 0; i < coinCount; i++) {
+          // Distribute coins evenly in the gap
+          const segment = gapHeight / (coinCount + 1);
+          const coinY = gapTop + segment * (i + 1) - (coinSize / 2);
+          
+          coins.push({
+            id: `coin-${pairId}-${i}`,
+            x: coinX,
+            y: coinY,
+            width: coinSize,
+            height: coinSize,
+            value: 10,
+            isCollected: false
+          });
+        }
+        
+        // Add coins to game state
+        setGameState(prev => ({
+          ...prev,
+          collectibles: [...prev.collectibles, ...coins]
+        }));
+      });
+    };
+    
+    // Check for coin collections
+    const checkCoinCollections = () => {
+      const { character, collectibles } = gameState;
+      
+      const uncollectedCoins = collectibles.filter(coin => !coin.isCollected);
+      let newCoinCount = 0;
+      
+      // Check each coin for collision with character
+      const updatedCollectibles = collectibles.map(coin => {
+        // Skip already collected coins
+        if (coin.isCollected) return coin;
+        
+        // Check collision
+        if (
+          character.x < coin.x + coin.width &&
+          character.x + character.width > coin.x &&
+          character.y < coin.y + coin.height &&
+          character.y + character.height > coin.y
+        ) {
+          newCoinCount += 1;
+          // Update score
+          addScore(coin.value);
+          setCoinsCollected(prev => prev + 1);
+          
+          // Display collection notification for first coin or milestone
+          if (coinsCollected === 0 || (coinsCollected + 1) % 10 === 0) {
+            toast.success(`Collected ${coinsCollected + 1} coins!`, {
+              icon: <Coins className="text-yellow-400" />,
+            });
+          }
+          
+          return { ...coin, isCollected: true };
+        }
+        
+        return coin;
+      });
+      
+      // Update game state with collected coins
+      if (newCoinCount > 0) {
+        setGameState(prev => ({
+          ...prev,
+          collectibles: updatedCollectibles
+        }));
+      }
+    };
+    
     // Check if obstacles have been passed for scoring
     const checkPassedObstacles = () => {
       const newPassedIds: string[] = [...passedObstacleIds];
@@ -224,6 +349,12 @@ const Game = () => {
       // Generate obstacles 
       generateObstacles(timestamp);
       
+      // Generate coins between obstacles
+      generateCoins();
+      
+      // Check for coin collections
+      checkCoinCollections();
+      
       // Update obstacle tracking
       updateLastObstacleX();
       
@@ -258,7 +389,8 @@ const Game = () => {
     passedObstacleIds, 
     lastObstacleTime,
     currentDifficulty,
-    lastObstacleX
+    lastObstacleX,
+    coinsCollected
   ]);
   
   // Reset passed obstacles when game resets
@@ -287,13 +419,14 @@ const Game = () => {
       {/* Game canvas */}
       <GameCanvas gameState={gameState} />
       
-      {/* Score panel with difficulty indicator */}
+      {/* Score panel with coins display */}
       {gameState.isPlaying && (
         <ScorePanel 
           score={gameState.score}
           highScore={gameState.highScore}
           lives={gameState.lives}
           level={gameState.level}
+          coins={coinsCollected}
         />
       )}
       
@@ -359,7 +492,7 @@ const Game = () => {
         )}
       </AnimatePresence>
       
-      {/* Game over overlay */}
+      {/* Game over overlay with coin stats */}
       <AnimatePresence>
         {gameState.isGameOver && (
           <motion.div 
@@ -381,6 +514,13 @@ const Game = () => {
                 <div className="chip bg-yellow-100 text-yellow-800 mb-4">New High Score!</div>
               )}
               
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Coins className="w-5 h-5 text-yellow-400" />
+                <p className="text-sm text-gray-700">
+                  Coins collected: <span className="font-bold">{coinsCollected}</span>
+                </p>
+              </div>
+              
               <p className="text-sm text-gray-400 mb-4">
                 You reached difficulty level {Math.floor(currentDifficulty)}
               </p>
@@ -390,6 +530,7 @@ const Game = () => {
                   onClick={() => {
                     resetGame();
                     setShowMenu(true);
+                    setCoinsCollected(0);
                   }}
                   className="game-button-secondary flex-1"
                 >
@@ -399,6 +540,7 @@ const Game = () => {
                 <button 
                   onClick={() => {
                     initializeLevel(gameState.level);
+                    setCoinsCollected(0);
                     setTimeout(() => {
                       startGame();
                       setGameStartTime(Date.now());
