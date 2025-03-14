@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -257,7 +256,7 @@ const Game = () => {
         }
         
         // Add coins to game state
-        setGameState((prev) => ({
+        setGameState(prev => ({
           ...prev,
           collectibles: [...prev.collectibles, ...coins]
         }));
