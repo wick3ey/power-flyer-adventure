@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import GameCanvas from './GameCanvas';
@@ -155,6 +154,13 @@ const Game: React.FC = () => {
           
           if (isValidObstaclePair) {
             addObstacles(newObstacles);
+            
+            // Generate coins between the obstacles
+            const topPipe = newObstacles[0];
+            const bottomPipe = newObstacles[1];
+            const newCoins = generateCoins(topPipe, bottomPipe, currentDifficulty);
+            addCoins(newCoins);
+            
             setLastObstacleTime(timestamp);
             setLastObstacleX(window.innerWidth); // New obstacles always start at the right edge
           } else {
@@ -259,7 +265,8 @@ const Game: React.FC = () => {
     passedObstacleIds, 
     lastObstacleTime,
     currentDifficulty,
-    lastObstacleX
+    lastObstacleX,
+    generateCoins
   ]);
   
   // Reset passed obstacles when game resets
@@ -365,12 +372,13 @@ const Game: React.FC = () => {
             setTimeout(() => {
               startGame();
               setGameStartTime(Date.now());
+              setShowMenu(false);
             }, 100);
           } else {
             startGame();
             setGameStartTime(Date.now());
+            setShowMenu(false);
           }
-          setShowMenu(false);
         }}
         onReset={resetGame}
         isMobile={isMobile}
