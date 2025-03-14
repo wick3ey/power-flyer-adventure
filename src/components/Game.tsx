@@ -100,7 +100,6 @@ const Game = () => {
       const timePlayed = (Date.now() - gameStartTime) / 1000;
       
       // Increase difficulty based on both score and time played
-      // Base difficulty starts at 1, increases more rapidly as score/time goes up
       const scoreFactor = gameState.score > 0 ? Math.log(gameState.score + 1) * 0.3 : 0;
       const timeFactor = timePlayed > 0 ? Math.log(timePlayed + 1) * 0.2 : 0;
       
@@ -243,37 +242,49 @@ const Game = () => {
       }
     };
     
-    // Generate coins - enhanced with more variety and patterns
+    // Generate coins - simplified and more reliable approach
     const generateCoins = () => {
-      // Only generate coins if there are enough obstacles to place them between
-      if (gameState.obstacles.length < 2) return;
+      // Find pairs of obstacles that could have coins between them
+      // We only want obstacles that have just entered the screen
+      const obstaclePairs = [];
       
-      // Find pairs of obstacles to place coins between
-      const obstaclesRight = gameState.obstacles.filter(o => o.x > window.innerWidth);
+      // Group obstacles by their pair ID
+      const pairMap = new Map();
       
-      // Group obstacles by their ID prefix to find pairs
-      const obstaclePairs: {[key: string]: any[]} = {};
-      obstaclesRight.forEach(o => {
-        const pairId = o.id.split('-').slice(0, 3).join('-');
-        if (!obstaclePairs[pairId]) {
-          obstaclePairs[pairId] = [];
+      gameState.obstacles.forEach(obstacle => {
+        // Look for pipes that are just entering the screen
+        // This ensures we only generate coins once per pipe pair
+        if (obstacle.x > window.innerWidth - 50 && obstacle.x < window.innerWidth + 50) {
+          // Get the pipe pair ID (the timestamp-randomSuffix part)
+          const pairIdParts = obstacle.id.split('-');
+          // For pipe-top-12345-678 or pipe-bottom-12345-678, extract 12345-678
+          const pairId = pairIdParts.slice(2).join('-');
+          
+          if (!pairMap.has(pairId)) {
+            pairMap.set(pairId, []);
+          }
+          pairMap.get(pairId).push(obstacle);
         }
-        obstaclePairs[pairId].push(o);
       });
       
-      // Place coins between each valid pair of obstacles with more patterns
-      Object.keys(obstaclePairs).forEach((pairId) => {
-        const pair = obstaclePairs[pairId];
-        if (pair.length !== 2) return;
-        
-        // Sort obstacles by y position (top pipe first, bottom pipe second)
-        pair.sort((a, b) => a.y - b.y);
-        
-        const [topPipe, bottomPipe] = pair;
-        
+      // Now find valid pairs (must have 2 obstacles - top and bottom pipe)
+      pairMap.forEach((obstacles, pairId) => {
+        if (obstacles.length === 2) {
+          // Sort by y position to get top pipe first, bottom pipe second
+          obstacles.sort((a, b) => a.y - b.y);
+          obstaclePairs.push({
+            pairId,
+            topPipe: obstacles[0],
+            bottomPipe: obstacles[1]
+          });
+        }
+      });
+      
+      // For each valid pair, check if we've already generated coins
+      obstaclePairs.forEach(({ pairId, topPipe, bottomPipe }) => {
         // Check if this pair already has coins
-        const hasCoinsBetween = gameState.collectibles.some(c => 
-          c.id.includes(pairId)
+        const hasCoinsBetween = gameState.collectibles.some(coin => 
+          coin.id.includes(pairId)
         );
         
         if (hasCoinsBetween) return;
@@ -286,189 +297,30 @@ const Game = () => {
         // Only add coins if the gap is large enough
         if (gapHeight < 100) return;
         
-        // Generate a random pattern (0-5)
-        const pattern = Math.floor(Math.random() * 6);
-        const coinSize = 30 + Math.random() * 10; // Random size between 30-40px
-        const coins = [];
+        // Generate a single coin in the middle of the gap
+        const coinSize = 40; // Fixed size for better visibility
+        const coinX = topPipe.x + (topPipe.width / 2) - (coinSize / 2);
+        const coinY = gapTop + (gapHeight / 2) - (coinSize / 2);
         
-        // Create coins based on patterns
-        switch (pattern) {
-          case 0: // Line of coins
-            {
-              const coinCount = Math.min(5, Math.floor(gapHeight / 40));
-              for (let i = 0; i < coinCount; i++) {
-                const segment = gapHeight / (coinCount + 1);
-                const coinY = gapTop + segment * (i + 1) - (coinSize / 2);
-                const coinX = topPipe.x + (topPipe.width / 2) - (coinSize / 2);
-                
-                coins.push({
-                  id: `coin-${pairId}-${i}`,
-                  x: coinX,
-                  y: coinY,
-                  width: coinSize,
-                  height: coinSize,
-                  value: 10,
-                  isCollected: false
-                });
-              }
-            }
-            break;
-            
-          case 1: // Arc pattern
-            {
-              const coinCount = Math.min(5, Math.floor(gapHeight / 40));
-              const arcRadius = gapHeight / 2;
-              const centerY = gapTop + gapHeight / 2;
-              
-              for (let i = 0; i < coinCount; i++) {
-                const angle = (Math.PI / (coinCount - 1)) * i;
-                const coinY = centerY - Math.sin(angle) * arcRadius;
-                const coinX = topPipe.x + (topPipe.width / 2) - (coinSize / 2) + Math.cos(angle) * 60;
-                
-                coins.push({
-                  id: `coin-${pairId}-${i}`,
-                  x: coinX,
-                  y: coinY,
-                  width: coinSize,
-                  height: coinSize,
-                  value: 10,
-                  isCollected: false
-                });
-              }
-            }
-            break;
-            
-          case 2: // Diamond pattern
-            {
-              const centerY = gapTop + gapHeight / 2;
-              const centerX = topPipe.x + (topPipe.width / 2);
-              
-              // Diamond points (top, right, bottom, left)
-              const diamondPoints = [
-                { x: centerX, y: centerY - 70 },
-                { x: centerX + 70, y: centerY },
-                { x: centerX, y: centerY + 70 },
-                { x: centerX - 70, y: centerY }
-              ];
-              
-              // Add coins at diamond points
-              diamondPoints.forEach((point, i) => {
-                coins.push({
-                  id: `coin-${pairId}-${i}`,
-                  x: point.x - (coinSize / 2),
-                  y: point.y - (coinSize / 2),
-                  width: coinSize,
-                  height: coinSize,
-                  value: 15, // Higher value for pattern
-                  isCollected: false
-                });
-              });
-              
-              // Add center coin
-              coins.push({
-                id: `coin-${pairId}-center`,
-                x: centerX - (coinSize / 2),
-                y: centerY - (coinSize / 2),
-                width: coinSize,
-                height: coinSize,
-                value: 25, // Bonus coin in center
-                isCollected: false
-              });
-            }
-            break;
-            
-          case 3: // Vertical zigzag
-            {
-              const coinCount = Math.min(7, Math.floor(gapHeight / 30));
-              const baseX = topPipe.x + (topPipe.width / 2) - (coinSize / 2);
-              
-              for (let i = 0; i < coinCount; i++) {
-                const segment = gapHeight / (coinCount + 1);
-                const coinY = gapTop + segment * (i + 1) - (coinSize / 2);
-                const offset = (i % 2 === 0) ? -40 : 40;
-                
-                coins.push({
-                  id: `coin-${pairId}-${i}`,
-                  x: baseX + offset,
-                  y: coinY,
-                  width: coinSize,
-                  height: coinSize,
-                  value: 10,
-                  isCollected: false
-                });
-              }
-            }
-            break;
-            
-          case 4: // Bonus coin cluster
-            {
-              const centerY = gapTop + gapHeight / 2;
-              const centerX = topPipe.x + (topPipe.width / 2);
-              
-              // Create a cluster of 3 coins
-              coins.push({
-                id: `coin-${pairId}-center`,
-                x: centerX - (coinSize / 2),
-                y: centerY - (coinSize / 2),
-                width: coinSize * 1.3, // Larger center coin
-                height: coinSize * 1.3,
-                value: 50, // Bonus coin worth more
-                isCollected: false
-              });
-              
-              // Add smaller coins around it
-              const smallerSize = coinSize * 0.8;
-              const positions = [
-                { x: centerX - 50, y: centerY },
-                { x: centerX + 50, y: centerY },
-                { x: centerX, y: centerY - 50 },
-                { x: centerX, y: centerY + 50 }
-              ];
-              
-              positions.forEach((pos, i) => {
-                coins.push({
-                  id: `coin-${pairId}-orbit-${i}`,
-                  x: pos.x - (smallerSize / 2),
-                  y: pos.y - (smallerSize / 2),
-                  width: smallerSize,
-                  height: smallerSize,
-                  value: 15,
-                  isCollected: false
-                });
-              });
-            }
-            break;
-            
-          case 5: // Single large coin (rare bonus)
-            {
-              const centerY = gapTop + gapHeight / 2;
-              const centerX = topPipe.x + (topPipe.width / 2);
-              const largeSize = coinSize * 1.8; // Much larger coin
-              
-              coins.push({
-                id: `coin-${pairId}-large`,
-                x: centerX - (largeSize / 2),
-                y: centerY - (largeSize / 2),
-                width: largeSize,
-                height: largeSize,
-                value: 100, // Very valuable coin
-                isCollected: false
-              });
-            }
-            break;
-        }
+        const newCoin = {
+          id: `coin-${pairId}`,
+          x: coinX,
+          y: coinY,
+          width: coinSize,
+          height: coinSize,
+          value: 10,
+          isCollected: false
+        };
         
-        // Add coins to game state if there are any to add
-        if (coins.length > 0) {
-          setGameState(prev => ({
-            ...prev,
-            collectibles: [...prev.collectibles, ...coins]
-          }));
-        }
+        // Add the coin to the game state
+        setGameState(prev => ({
+          ...prev,
+          collectibles: [...prev.collectibles, newCoin]
+        }));
       });
     };
     
-    // Check for coin collections with enhanced feedback
+    // Check for coin collections
     const checkCoinCollections = () => {
       // Check if there are any collectibles
       if (gameState.collectibles.length === 0) return;

@@ -26,7 +26,7 @@ const Coin: React.FC<CoinProps> = ({ coin, onCollect }) => {
   
   return (
     <motion.div
-      className="absolute z-10 pointer-events-auto"
+      className="absolute z-10 pointer-events-auto cursor-pointer"
       style={{
         left: coin.x,
         top: coin.y,
