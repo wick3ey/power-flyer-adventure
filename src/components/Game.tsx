@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -19,6 +18,8 @@ import { generateId } from '../utils/gameUtils';
 import { preloadSounds, playCoinSound } from '../utils/soundUtils';
 
 const Game = () => {
+  console.log("Game component rendering");
+  
   // Game state and controls
   const {
     gameState,
@@ -76,6 +77,27 @@ const Game = () => {
     preloadSounds(['/coin-sound.mp3']);
   }, []);
   
+  // Function to prune coins that have moved off screen
+  const pruneOffscreenCoins = useCallback(() => {
+    if (!gameState.collectibles || gameState.collectibles.length === 0) return;
+    
+    const updatedCollectibles = gameState.collectibles.filter(coin => {
+      // Keep collected coins (for potential animation)
+      if (coin.isCollected) return false; // Remove collected coins
+      
+      // Remove coins that have gone off the left edge of the screen
+      return coin.x > -100;
+    });
+    
+    // Only update if we actually pruned some coins
+    if (updatedCollectibles.length !== gameState.collectibles.length) {
+      setGameState(prev => ({
+        ...prev,
+        collectibles: updatedCollectibles
+      }));
+    }
+  }, [gameState.collectibles, setGameState]);
+  
   // Handle keyboard and touch controls
   const { isMobile } = useGameControls({
     isPlaying: gameState.isPlaying,
@@ -105,26 +127,10 @@ const Game = () => {
     console.log("Coin collection triggered!", coin);
     
     if (!coin.isCollected) {
-      // Update game state to mark the coin as collected
-      const updatedCollectibles = gameState.collectibles.map(c => {
-        if (c.id === coin.id) {
-          return { ...c, isCollected: true };
-        }
-        return c;
-      });
-      
-      // Update state
-      setGameState(prevState => ({
-        ...prevState,
-        collectibles: updatedCollectibles,
-        score: prevState.score + coin.value
-      }));
+      collectCoin(coin.id);
       
       // Increment collected coins counter
       setCoinsCollected(prev => prev + 1);
-      
-      // Play sound
-      playCoinSound();
       
       // Visual feedback based on coin value
       let toastColor = "yellow";
@@ -147,7 +153,7 @@ const Game = () => {
         duration: 1500
       });
     }
-  }, [gameState.collectibles, setGameState]);
+  }, [collectCoin]);
   
   // Update difficulty based on score and time - optimized dependency array
   useEffect(() => {
@@ -181,28 +187,7 @@ const Game = () => {
     currentDifficulty
   ]);
   
-  // Function to prune coins that have moved off screen
-  const pruneOffscreenCoins = useCallback(() => {
-    if (!gameState.collectibles || gameState.collectibles.length === 0) return;
-    
-    const updatedCollectibles = gameState.collectibles.filter(coin => {
-      // Keep collected coins (for potential animation)
-      if (coin.isCollected) return false; // Remove collected coins
-      
-      // Remove coins that have gone off the left edge of the screen
-      return coin.x > -100;
-    });
-    
-    // Only update if we actually pruned some coins
-    if (updatedCollectibles.length !== gameState.collectibles.length) {
-      setGameState(prev => ({
-        ...prev,
-        collectibles: updatedCollectibles
-      }));
-    }
-  }, [gameState.collectibles, setGameState]);
-  
-  // Game loop
+  // Game loop - FIXED to prevent infinite rendering
   useEffect(() => {
     // Only run the game loop if the game is playing and not paused
     if (!gameState.isPlaying || gameState.isPaused) {
@@ -523,10 +508,12 @@ const Game = () => {
     };
     
     // Start the game loop
+    console.log("Starting game loop");
     animationFrameRef.current = requestAnimationFrame(gameLoop);
     
     // Clean up on unmount or when game state changes
     return () => {
+      console.log("Cleaning up game loop");
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -566,7 +553,7 @@ const Game = () => {
   }, [gameState.isPlaying]);
   
   // Handle level selection
-  const handleLevelSelect = (levelId: number) => {
+  const handleLevelSelect = useCallback((levelId: number) => {
     initializeLevel(levelId);
     setShowLevelSelect(false);
     setShowMenu(false);
@@ -574,7 +561,7 @@ const Game = () => {
       startGame();
       setGameStartTime(Date.now());
     }, 100);
-  };
+  }, [initializeLevel, startGame]);
   
   // Enhanced coin rendering with improved visibility
   const renderCoins = useCallback(() => {
