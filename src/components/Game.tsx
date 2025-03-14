@@ -1,156 +1,172 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import GameCanvas from './GameCanvas';
 import GameMenu from './GameMenu';
 import GameControls from './GameControls';
 import ScorePanel from './ScorePanel';
-import LevelSelect from './LevelSelect';
+import { Obstacle, ObstacleType, PowerUpType, generateId, DifficultyLevel } from '../utils/gameUtils';
 import useGameState from '../hooks/useGameState';
 import useGameControls from '../hooks/useGameControls';
 import { useIsMobile } from '../hooks/use-mobile';
-import useGamePhysics from '../hooks/useGamePhysics';
-import { Dialog } from './ui/dialog';
-import { Button } from './ui/button';
-import { toast } from 'sonner';
+
+const INITIAL_SPAWN_DELAY = 2000; // ms before first obstacle spawns
+const BASE_SPAWN_INTERVAL = 2000; // Base time between obstacles
+const MIN_SPAWN_INTERVAL = 1400; // Minimum time between obstacles (for max difficulty)
+const DIFFICULTY_INCREASE_RATE = 0.02; // How quickly difficulty increases
+const MAX_DIFFICULTY = 10; // Cap on difficulty scaling
 
 const Game: React.FC = () => {
-  // Game state and controls
   const {
-    gameState,
-    initializeLevel,
-    startGame,
-    pauseGame,
-    endGame,
-    completeLevel,
+    gameState, 
+    startGame, 
+    pauseGame, 
+    updateGameState, 
+    resetGame, 
     jump,
-    updateGameState,
-    resetGame,
-    addScore,
+    initializeLevel,
     addObstacles,
-    addCoins
+    addCoins,
+    generateCoins
   } = useGameState();
   
-  // Game physics
-  const physics = useGamePhysics();
-  
-  // Animation frame ref
-  const animationFrameRef = useRef<number>();
-  
-  // Track passed obstacles to avoid double counting scores
-  const [passedObstacleIds, setPassedObstacleIds] = useState<string[]>([]);
-  
-  // Timer for spawning obstacles
-  const [lastObstacleTime, setLastObstacleTime] = useState(0);
-  
-  // Track the last obstacle's x position to prevent spawning too close
-  const [lastObstacleX, setLastObstacleX] = useState<number | null>(null);
-  
-  // UI state
-  const [showMenu, setShowMenu] = useState(true);
-  const [showLevelSelect, setShowLevelSelect] = useState(false);
-  
-  // Game dynamic difficulty scaling
-  const [currentDifficulty, setCurrentDifficulty] = useState(1);
-  
-  // Track time played for difficulty scaling
-  const [gameStartTime, setGameStartTime] = useState(0);
-  
-  // Handle keyboard and touch controls
-  const { isMobile } = useGameControls({
+  const { 
+    setupKeyboardControls, 
+    setupTouchControls, 
+    cleanupControls 
+  } = useGameControls({
     isPlaying: gameState.isPlaying,
     isPaused: gameState.isPaused,
+    isGameOver: gameState.isGameOver,
     onJump: jump,
     onPause: pauseGame,
-    onStart: () => {
-      if (!gameState.isPlaying) {
-        if (gameState.activeLevel === null) {
-          initializeLevel(1);
-          setTimeout(() => {
-            startGame();
-            setGameStartTime(Date.now());
-          }, 100);
-        } else {
-          startGame();
-          setGameStartTime(Date.now());
-        }
-        setShowMenu(false);
-      }
-    },
-    onReset: resetGame
+    onRestart: resetGame,
   });
   
-  // Update difficulty based on score and time
-  useEffect(() => {
-    if (gameState.isPlaying && !gameState.isPaused) {
-      // Calculate time played in seconds
-      const timePlayed = (Date.now() - gameStartTime) / 1000;
-      
-      // Increase difficulty based on both score and time played
-      // Base difficulty starts at 1, increases more rapidly as score/time goes up
-      const scoreFactor = gameState.score > 0 ? Math.log(gameState.score + 1) * 0.3 : 0;
-      const timeFactor = timePlayed > 0 ? Math.log(timePlayed + 1) * 0.2 : 0;
-      
-      const newDifficulty = 1 + scoreFactor + timeFactor;
-      
-      // Cap difficulty at 5 to prevent it from becoming impossible
-      const cappedDifficulty = Math.min(5, newDifficulty);
-      
-      if (Math.abs(cappedDifficulty - currentDifficulty) > 0.2) {
-        setCurrentDifficulty(cappedDifficulty);
-        
-        // Notify player of increasing difficulty at certain thresholds
-        if (Math.floor(cappedDifficulty) > Math.floor(currentDifficulty)) {
-          toast.info(`Difficulty increased to level ${Math.floor(cappedDifficulty)}!`);
-        }
-      }
-    }
-  }, [gameState.isPlaying, gameState.isPaused, gameState.score, gameStartTime, currentDifficulty]);
+  // State variables for obstacle generation
+  const [lastObstacleTime, setLastObstacleTime] = useState(0);
+  const [currentDifficulty, setCurrentDifficulty] = useState(1);
+  const [gameStartTime, setGameStartTime] = useState(0);
+  const [lastObstacleX, setLastObstacleX] = useState(0);
+  const [passedObstacleIds, setPassedObstacleIds] = useState<string[]>([]);
+  const [showMenu, setShowMenu] = useState(true);
+  const isMobile = useIsMobile();
   
-  // Game loop
+  // Reference to animation frame for cleanup
+  const animationRef = useRef<number | null>(null);
+  
+  // Initialize level when component mounts
   useEffect(() => {
-    // Only run the game loop if the game is playing and not paused
+    initializeLevel(1); // Start with level 1
+  }, [initializeLevel]);
+  
+  // Setup and cleanup game controls
+  useEffect(() => {
+    setupKeyboardControls();
+    setupTouchControls();
+    
+    return () => {
+      cleanupControls();
+    };
+  }, [setupKeyboardControls, setupTouchControls, cleanupControls]);
+  
+  // Main game loop
+  useEffect(() => {
     if (!gameState.isPlaying || gameState.isPaused) {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
       return;
     }
     
-    // Function to generate Flappy Bird style pipe obstacles with improved collision prevention
-    const generateObstacles = (timestamp: number) => {
-      // Generate new obstacles with variable frequency based on difficulty
-      const obstacleFrequency = 2000 - (currentDifficulty * 150); // Decrease time between obstacles as difficulty increases
-      const minFrequency = 1300; // Increased minimum frequency to prevent overcrowding
-      const actualFrequency = Math.max(minFrequency, obstacleFrequency);
+    let lastTime = 0;
+    
+    const gameLoop = (timestamp: number) => {
+      if (!lastTime) lastTime = timestamp;
+      const deltaTime = timestamp - lastTime;
+      lastTime = timestamp;
       
-      // Increased minimum distance between obstacles to prevent overcrowding
-      const minDistanceBetweenObstacles = window.innerWidth * 0.65; // 65% of screen width
+      // Update difficulty based on game time
+      const gameTime = timestamp - gameStartTime;
+      const newDifficulty = Math.min(
+        MAX_DIFFICULTY,
+        1 + (gameTime / 1000) * DIFFICULTY_INCREASE_RATE
+      );
       
-      // Check if enough time has passed AND if obstacles are spaced far enough apart
-      const canGenerateObstacle = timestamp - lastObstacleTime > actualFrequency;
-      const isProperlySpaced = lastObstacleX === null || 
-                              !gameState.obstacles.length || 
-                              lastObstacleX < window.innerWidth - minDistanceBetweenObstacles;
-                              
-      if (canGenerateObstacle && isProperlySpaced) {
-        // Double check for any obstacles near the right edge of the screen
-        const hasObstaclesNearEdge = gameState.obstacles.some(obstacle => {
-          // Don't generate obstacles if any are still near the right edge of the screen
-          return obstacle.x + obstacle.width > window.innerWidth - 120; // Increased safety margin
-        });
+      if (newDifficulty !== currentDifficulty) {
+        setCurrentDifficulty(newDifficulty);
+      }
+      
+      // Generate obstacles with dynamic timing
+      if (gameState.isPlaying && !gameState.isPaused) {
+        // Calculate spawn interval based on current difficulty
+        const difficultyFactor = (currentDifficulty - 1) / (MAX_DIFFICULTY - 1);
+        const spawnInterval = BASE_SPAWN_INTERVAL - (difficultyFactor * (BASE_SPAWN_INTERVAL - MIN_SPAWN_INTERVAL));
         
-        if (!hasObstaclesNearEdge) {
-          // Use the current difficulty to generate appropriate obstacles
-          const newObstacles = physics.generateFlappyObstacles(
-            window.innerWidth, 
-            window.innerHeight,
-            currentDifficulty
+        // Check if it's time to spawn a new obstacle
+        const timeSinceLastObstacle = timestamp - lastObstacleTime;
+        const initialDelayPassed = gameStartTime > 0 && timestamp - gameStartTime > INITIAL_SPAWN_DELAY;
+        
+        // Check if enough horizontal space has passed since last obstacle
+        // This ensures obstacles aren't too close together regardless of speed
+        const minObstacleSpacing = window.innerWidth * 0.6; // 60% of screen width for spacing
+        const enoughSpacePassed = lastObstacleX === 0 || (window.innerWidth - lastObstacleX) > minObstacleSpacing;
+        
+        if (
+          (initialDelayPassed && timeSinceLastObstacle > spawnInterval && enoughSpacePassed) || 
+          (initialDelayPassed && lastObstacleTime === 0)
+        ) {
+          // Generate obstacles with increasing difficulty
+          const gapSize = Math.max(
+            150, // Minimum gap size
+            250 - (difficultyFactor * 100) // Gap shrinks as difficulty increases
           );
           
-          // Additional validation: Check that obstacles have a passable gap
-          // Ensure at least 200px gap for the player to pass through
-          const isValidObstaclePair = newObstacles.length === 2 && 
-                                    newObstacles[1].y > (newObstacles[0].y + newObstacles[0].height + 200);
+          const pipeWidth = 80;
+          const pipeSpeed = 5 + (difficultyFactor * 3); // Speed increases with difficulty
+          
+          // Calculate random gap position
+          const minGapTop = 100; // Minimum distance from top
+          const maxGapBottom = window.innerHeight - 100; // Maximum distance from bottom
+          const availableSpace = maxGapBottom - minGapTop - gapSize;
+          const gapTop = minGapTop + (Math.random() * availableSpace);
+          const gapBottom = gapTop + gapSize;
+          
+          // Create a top and bottom pipe
+          const topPipeHeight = gapTop;
+          const bottomPipeTop = gapBottom;
+          const bottomPipeHeight = window.innerHeight - bottomPipeTop;
+          
+          const topPipeId = generateId();
+          const bottomPipeId = generateId();
+          
+          const newObstacles: Obstacle[] = [
+            {
+              id: topPipeId,
+              type: ObstacleType.STATIC,
+              x: window.innerWidth,
+              y: 0,
+              width: pipeWidth,
+              height: topPipeHeight,
+              speed: pipeSpeed,
+            },
+            {
+              id: bottomPipeId,
+              type: ObstacleType.STATIC,
+              x: window.innerWidth,
+              y: bottomPipeTop,
+              width: pipeWidth,
+              height: bottomPipeHeight,
+              speed: pipeSpeed,
+            }
+          ];
+          
+          // Check if the new obstacle pair forms a valid gap
+          // This ensures the player always has a possible path
+          const isValidObstaclePair = gapSize >= 150 && // Minimum gap must be at least 150px
+            gapTop >= 50 && // Gap must start at least 50px from the top
+            window.innerHeight - gapBottom >= 50; // Gap must end at least 50px from the bottom
           
           if (isValidObstaclePair) {
             addObstacles(newObstacles);
@@ -164,104 +180,35 @@ const Game: React.FC = () => {
             setLastObstacleTime(timestamp);
             setLastObstacleX(window.innerWidth); // New obstacles always start at the right edge
           } else {
-            console.error("Invalid obstacle generation detected, retrying...");
-            // Try again with lower difficulty to ensure a valid gap
-            const fixedObstacles = physics.generateFlappyObstacles(
-              window.innerWidth, 
-              window.innerHeight,
-              Math.max(1, currentDifficulty - 1) // Significantly lower difficulty for the retry
-            );
-            
-            // Final safety check - only add if there's a valid gap
-            if (fixedObstacles.length === 2 && 
-                fixedObstacles[1].y > (fixedObstacles[0].y + fixedObstacles[0].height + 200)) {
-              addObstacles(fixedObstacles);
-              setLastObstacleTime(timestamp);
-              setLastObstacleX(window.innerWidth);
-            } else {
-              console.error("Failed to generate valid obstacles even after retry. Skipping this obstacle.");
-              // Skip this obstacle generation cycle
-              setLastObstacleTime(timestamp);
-            }
-          }
-        } else {
-          console.log("Prevented overlapping obstacles - waiting for screen to clear");
-        }
-      }
-    };
-    
-    // Check if obstacles have been passed for scoring
-    const checkPassedObstacles = () => {
-      const newPassedIds: string[] = [...passedObstacleIds];
-      let scoreAdded = false;
-      
-      gameState.obstacles.forEach(obstacle => {
-        if (physics.checkObstaclePassed(gameState.character, obstacle, passedObstacleIds)) {
-          newPassedIds.push(obstacle.id);
-          if (!scoreAdded) {
-            // Award more points at higher difficulties
-            const pointsGained = Math.floor(1 + (currentDifficulty * 0.5));
-            addScore(pointsGained);
-            scoreAdded = true; // Only add score once per pair of pipes
+            // If not valid, try again on the next frame
+            console.log("Invalid obstacle pair generated, retrying...");
           }
         }
-      });
-      
-      if (newPassedIds.length !== passedObstacleIds.length) {
-        setPassedObstacleIds(newPassedIds);
-      }
-    };
-    
-    // Update last obstacle X position based on the rightmost obstacle
-    const updateLastObstacleX = () => {
-      if (gameState.obstacles.length === 0) {
-        setLastObstacleX(null);
-        return;
       }
       
-      const rightmostObstacle = gameState.obstacles.reduce((rightmost, current) => {
-        return current.x > rightmost.x ? current : rightmost;
-      }, gameState.obstacles[0]);
-      
-      setLastObstacleX(rightmostObstacle.x);
-    };
-    
-    // Game loop function
-    const gameLoop = (timestamp: number) => {
-      // Generate obstacles 
-      generateObstacles(timestamp);
-      
-      // Update obstacle tracking
-      updateLastObstacleX();
-      
-      // Check for scoring
-      checkPassedObstacles();
-      
-      // Update game state (physics, collisions, etc.)
+      // Update game state
       updateGameState();
       
       // Continue the game loop
-      animationFrameRef.current = requestAnimationFrame(gameLoop);
+      animationRef.current = requestAnimationFrame(gameLoop);
     };
     
-    // Start the game loop
-    animationFrameRef.current = requestAnimationFrame(gameLoop);
+    animationRef.current = requestAnimationFrame(gameLoop);
     
-    // Clean up on unmount or when game state changes
+    // Cleanup animation frame on unmount or when game stops
     return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     };
   }, [
     gameState.isPlaying, 
     gameState.isPaused, 
     updateGameState, 
-    gameState.obstacles, 
-    gameState.character, 
-    physics, 
     addObstacles, 
-    addScore, 
+    addCoins,
+    gameStartTime, 
     passedObstacleIds, 
     lastObstacleTime,
     currentDifficulty,
@@ -271,303 +218,137 @@ const Game: React.FC = () => {
   
   // Reset passed obstacles when game resets
   useEffect(() => {
-    if (!gameState.isPlaying) {
+    if (!gameState.isPlaying && gameState.isGameOver) {
       setPassedObstacleIds([]);
-      setLastObstacleTime(0);
-      setCurrentDifficulty(1);
-      setLastObstacleX(null); // Reset obstacle X position tracking
+    }
+  }, [gameState.isPlaying, gameState.isGameOver]);
+  
+  // Handle game over automatically on loss
+  useEffect(() => {
+    if (gameState.isGameOver && gameState.isPlaying) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    }
+  }, [gameState.isGameOver, gameState.isPlaying]);
+  
+  // Close menu when game starts
+  useEffect(() => {
+    if (gameState.isPlaying) {
+      setShowMenu(false);
     }
   }, [gameState.isPlaying]);
   
-  // Handle level selection
-  const handleLevelSelect = (levelId: number) => {
-    initializeLevel(levelId);
-    setShowLevelSelect(false);
-    setShowMenu(false);
-    setTimeout(() => {
-      startGame();
-      setGameStartTime(Date.now());
-    }, 100);
-  };
-  
-  // Generate coins between the pipes
-  const generateCoins = (topPipe: any, bottomPipe: any, difficulty: number) => {
-    const coins = [];
-    const coinFrequency = 1000 - (difficulty * 100); // Decrease coin frequency with difficulty
-    
-    for (let i = 0; i < coinFrequency; i++) {
-      const x = Math.random() * (window.innerWidth - 100) + 50;
-      const y = Math.random() * (topPipe.y - bottomPipe.y - 100) + bottomPipe.y + 50;
-      coins.push({ x, y });
-    }
-    
-    return coins;
-  };
-  
+  // Show menu when game ends
   useEffect(() => {
-    if (!gameState.isPlaying || gameState.isPaused) return;
-    
-    const obstacleInterval = setInterval(() => {
-      // Generate new obstacles based on difficulty and progress
-      const level = Math.max(1, gameState.level);
-      const difficulty = level * 0.5; // Scale difficulty with level
-      
-      // Generate obstacles
-      const newObstacles = physics.generateFlappyObstacles(
-        window.innerWidth, 
-        window.innerHeight, 
-        difficulty
-      );
-      
-      // Add obstacles to game
-      addObstacles(newObstacles);
-      
-      // Generate coins between the pipes
-      if (newObstacles.length >= 2) {
-        const topPipe = newObstacles[0];
-        const bottomPipe = newObstacles[1];
-        
-        // Generate coins
-        const coins = generateCoins(topPipe, bottomPipe, difficulty);
-        
-        // Add coins to game
-        addCoins(coins);
+    if (gameState.isGameOver) {
+      setShowMenu(true);
+    }
+  }, [gameState.isGameOver]);
+  
+  // Handle window blur/focus events to pause/resume game
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && gameState.isPlaying && !gameState.isPaused) {
+        pauseGame();
       }
-    }, Math.max(1500 - gameState.level * 100, 1000)); // Faster obstacle generation at higher levels
+    };
     
-    return () => clearInterval(obstacleInterval);
-  }, [gameState.isPlaying, gameState.isPaused, gameState.level, addObstacles, addCoins, physics, generateCoins]);
+    const handleWindowBlur = () => {
+      if (gameState.isPlaying && !gameState.isPaused) {
+        pauseGame();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleWindowBlur);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [gameState.isPlaying, gameState.isPaused, pauseGame]);
   
   return (
-    <div className="relative w-full h-full overflow-hidden">
-      {/* Game canvas */}
-      <GameCanvas gameState={gameState} />
+    <div className="relative w-full h-full overflow-hidden bg-gradient-to-b from-sky-300 to-sky-600">
+      {/* Game Canvas */}
+      <div className="absolute inset-0 z-0">
+        <GameCanvas gameState={gameState} />
+      </div>
       
-      {/* Score panel with difficulty indicator */}
-      {gameState.isPlaying && (
-        <ScorePanel 
-          score={gameState.score}
-          highScore={gameState.highScore}
-          lives={gameState.lives}
-          level={gameState.level}
-        />
-      )}
+      {/* Game Menu */}
+      <AnimatePresence>
+        {showMenu && (
+          <motion.div 
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <GameMenu 
+              gameState={gameState}
+              onPlay={() => {
+                // Slight delay to avoid immediate jump on mobile
+                if (isMobile) {
+                  setTimeout(() => {
+                    startGame();
+                    setGameStartTime(Date.now());
+                    setShowMenu(false);
+                  }, 100);
+                } else {
+                  startGame();
+                  setGameStartTime(Date.now());
+                  setShowMenu(false);
+                }
+              }}
+              onReset={resetGame}
+              isMobile={isMobile}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
       
-      {/* Difficulty indicator */}
-      {gameState.isPlaying && !gameState.isPaused && (
-        <div className="absolute top-24 left-1/2 transform -translate-x-1/2 z-50 bg-black/30 px-3 py-1 rounded-full backdrop-blur-sm text-white text-sm">
-          <span className="font-bold">Difficulty:</span> Level {Math.floor(currentDifficulty)}
+      {/* Score Panel (only when playing) */}
+      {gameState.isPlaying && !showMenu && (
+        <div className={`absolute top-0 ${isMobile ? 'left-0 right-0' : 'right-0'} p-4 z-40`}>
+          <ScorePanel 
+            score={gameState.score} 
+            highScore={gameState.highScore}
+            lives={gameState.lives}
+            level={gameState.level}
+            isPaused={gameState.isPaused}
+            onPause={pauseGame}
+          />
         </div>
       )}
       
-      {/* Game controls */}
-      <GameControls 
-        isPlaying={gameState.isPlaying}
-        isPaused={gameState.isPaused}
-        onJump={jump}
-        onPause={pauseGame}
-        onStart={() => {
-          if (gameState.activeLevel === null) {
-            initializeLevel(1);
-            setTimeout(() => {
-              startGame();
-              setGameStartTime(Date.now());
-              setShowMenu(false);
-            }, 100);
-          } else {
-            startGame();
-            setGameStartTime(Date.now());
-            setShowMenu(false);
-          }
-        }}
-        onReset={resetGame}
-        isMobile={isMobile}
-      />
-      
-      {/* Game menu */}
-      <AnimatePresence>
-        {showMenu && (
-          <GameMenu 
-            onStart={() => {
-              initializeLevel(1);
-              setTimeout(() => {
-                startGame();
-                setGameStartTime(Date.now());
-                setShowMenu(false);
-              }, 100);
-            }}
-            onSelectLevel={() => setShowLevelSelect(true)}
-            onShowTutorial={() => toast.info("Game tutorial would be shown here!")}
-            onShowSettings={() => toast.info("Game settings would be shown here!")}
-            highScore={gameState.highScore}
+      {/* Game Controls - only show on mobile when playing */}
+      {gameState.isPlaying && !showMenu && isMobile && (
+        <div className="absolute bottom-6 left-0 right-0 z-40 flex justify-center">
+          <GameControls 
+            onJump={jump}
+            onPause={pauseGame}
+            isPaused={gameState.isPaused}
           />
-        )}
-      </AnimatePresence>
+        </div>
+      )}
       
-      {/* Level select */}
-      <AnimatePresence>
-        {showLevelSelect && (
-          <LevelSelect 
-            levels={gameState.levels}
-            onSelectLevel={handleLevelSelect}
-            onClose={() => setShowLevelSelect(false)}
-            currentLevel={gameState.level}
-          />
-        )}
-      </AnimatePresence>
+      {/* Game Instructions - only show when not on mobile */}
+      {!isMobile && (
+        <div className="absolute bottom-6 left-6 text-white text-shadow-md text-opacity-90 z-30">
+          <p className="text-sm">Press <span className="px-2 py-1 bg-white/20 rounded">Space</span> to jump</p>
+          <p className="text-sm mt-2">Press <span className="px-2 py-1 bg-white/20 rounded">P</span> to pause</p>
+        </div>
+      )}
       
-      {/* Game over overlay */}
-      <AnimatePresence>
-        {gameState.isGameOver && (
-          <motion.div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div 
-              className="game-card max-w-md w-full text-center"
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-            >
-              <h2 className="text-2xl font-bold mb-2">Game Over</h2>
-              <p className="text-gray-500 mb-4">Your score: {gameState.score}</p>
-              
-              {gameState.score === gameState.highScore && gameState.score > 0 && (
-                <div className="chip bg-yellow-100 text-yellow-800 mb-4">New High Score!</div>
-              )}
-              
-              <p className="text-sm text-gray-400 mb-4">
-                You reached difficulty level {Math.floor(currentDifficulty)}
-              </p>
-              
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => {
-                    resetGame();
-                    setShowMenu(true);
-                  }}
-                  className="game-button-secondary flex-1"
-                >
-                  Main Menu
-                </button>
-                
-                <button 
-                  onClick={() => {
-                    initializeLevel(gameState.level);
-                    setTimeout(() => {
-                      startGame();
-                      setGameStartTime(Date.now());
-                    }, 100);
-                  }}
-                  className="game-button flex-1"
-                >
-                  Try Again
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      {/* Level completed overlay */}
-      <AnimatePresence>
-        {gameState.isLevelCompleted && (
-          <motion.div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.div 
-              className="game-card max-w-md w-full text-center"
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-            >
-              <div className="chip bg-green-100 text-green-800 mb-2">Success!</div>
-              <h2 className="text-2xl font-bold mb-2">Level Completed</h2>
-              <p className="text-gray-500 mb-4">Your score: {gameState.score}</p>
-              
-              <div className="flex justify-center mb-6">
-                {Array.from({ length: 3 }).map((_, i) => {
-                  const level = gameState.levels.find(l => l.id === gameState.level);
-                  const stars = level ? level.stars : 0;
-                  
-                  return (
-                    <motion.div 
-                      key={i}
-                      initial={{ scale: 0, rotate: -30 }}
-                      animate={{ 
-                        scale: i < stars ? 1 : 0.5,
-                        rotate: 0
-                      }}
-                      transition={{ 
-                        delay: i * 0.3,
-                        type: 'spring',
-                        damping: 10,
-                        stiffness: 200
-                      }}
-                    >
-                      <div 
-                        className={`mx-2 w-12 h-12 flex items-center justify-center ${
-                          i < stars 
-                            ? 'text-game-warning' 
-                            : 'text-gray-300'
-                        }`}
-                      >
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path 
-                            d="M12 2L14.39 8.26L21 9.27L16.5 14.14L17.77 21L12 17.77L6.23 21L7.5 14.14L3 9.27L9.61 8.26L12 2Z" 
-                            fill={i < stars ? 'currentColor' : 'none'}
-                            stroke="currentColor" 
-                            strokeWidth="2" 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
-              
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => {
-                    resetGame();
-                    setShowMenu(true);
-                  }}
-                  className="game-button-secondary flex-1"
-                >
-                  Main Menu
-                </button>
-                
-                <button 
-                  onClick={() => {
-                    // Go to next level if available
-                    const nextLevel = gameState.level + 1;
-                    const hasNextLevel = gameState.levels.some(l => l.id === nextLevel);
-                    
-                    if (hasNextLevel) {
-                      initializeLevel(nextLevel);
-                      setTimeout(() => startGame(), 100);
-                    } else {
-                      // If no next level, go back to menu
-                      setShowMenu(true);
-                      toast.success("You've completed all available levels!");
-                    }
-                  }}
-                  className="game-button flex-1"
-                >
-                  Next Level
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Pause Screen */}
+      {gameState.isPaused && gameState.isPlaying && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-40">
+          <div className="text-4xl font-bold text-white animate-pulse">PAUSED</div>
+        </div>
+      )}
     </div>
   );
 };
