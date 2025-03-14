@@ -1,6 +1,7 @@
 
 import { useEffect, useCallback } from 'react';
 import { useIsMobile } from './use-mobile';
+import useSoundEffects from './useSoundEffects';
 
 interface GameControlsProps {
   isPlaying: boolean;
@@ -20,6 +21,13 @@ const useGameControls = ({
   onReset
 }: GameControlsProps) => {
   const isMobile = useIsMobile();
+  const { playJumpSound } = useSoundEffects();
+
+  // Wrapper för hopp-funktionen som spelar ljud
+  const handleJump = useCallback(() => {
+    playJumpSound();
+    onJump();
+  }, [onJump, playJumpSound]);
 
   // Handle keyboard controls
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
@@ -38,7 +46,7 @@ const useGameControls = ({
       case 'KeyW':
         // Prevent default space action (page scroll)
         event.preventDefault();
-        onJump();
+        handleJump(); // Använd vår nya wrapper istället för direkt onJump
         break;
       case 'Escape':
       case 'KeyP':
@@ -50,7 +58,7 @@ const useGameControls = ({
       default:
         break;
     }
-  }, [isPlaying, onJump, onPause, onReset, onStart]);
+  }, [isPlaying, handleJump, onPause, onReset, onStart]);
 
   // Handle touch controls for mobile
   const handleTouchStart = useCallback(() => {
@@ -60,9 +68,9 @@ const useGameControls = ({
     }
 
     if (!isPaused) {
-      onJump();
+      handleJump(); // Använd vår nya wrapper istället för direkt onJump
     }
-  }, [isPlaying, isPaused, onJump, onStart]);
+  }, [isPlaying, isPaused, handleJump, onStart]);
 
   useEffect(() => {
     // Set up keyboard event listeners

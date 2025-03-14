@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Play, Pause, RefreshCw, ArrowUp } from 'lucide-react';
+import useSoundEffects from '../hooks/useSoundEffects';
 
 interface GameControlsProps {
   isPlaying: boolean;
@@ -21,6 +22,14 @@ const GameControls: React.FC<GameControlsProps> = ({
   onReset,
   isMobile
 }) => {
+  const { playJumpSound } = useSoundEffects();
+  
+  // Skapa en wrapper-funktion som spelar ljudet och hoppar
+  const handleJump = () => {
+    playJumpSound(); // Spela hoppljud
+    onJump(); // Anropa ursprunglig hoppfunktion
+  };
+  
   return (
     <div className="fixed bottom-6 left-0 right-0 flex justify-center items-center gap-4 z-20">
       {isPlaying ? (
@@ -36,7 +45,7 @@ const GameControls: React.FC<GameControlsProps> = ({
           
           {isMobile && (
             <button 
-              onClick={onJump}
+              onClick={handleJump}
               className="game-icon-button w-20 h-20" // Larger jump button for mobile
               aria-label="Jump"
             >
