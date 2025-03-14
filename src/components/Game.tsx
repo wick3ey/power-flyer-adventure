@@ -142,11 +142,15 @@ const Game: React.FC = () => {
         
         if (!hasObstaclesNearEdge) {
           // Use the current difficulty to generate appropriate obstacles
+          // Apply the game speed to the generated obstacles 
           const newObstacles = physics.generateFlappyObstacles(
             window.innerWidth, 
             window.innerHeight,
             currentDifficulty
-          );
+          ).map(obstacle => ({
+            ...obstacle,
+            speed: obstacle.speed * gameState.gameSpeed // Apply game speed to obstacle speed
+          }));
           
           // Additional validation: Check that obstacles have a passable gap
           // Ensure at least 200px gap for the player to pass through
@@ -164,7 +168,10 @@ const Game: React.FC = () => {
               window.innerWidth, 
               window.innerHeight,
               Math.max(1, currentDifficulty - 1) // Significantly lower difficulty for the retry
-            );
+            ).map(obstacle => ({
+              ...obstacle,
+              speed: obstacle.speed * gameState.gameSpeed // Apply game speed to obstacle speed
+            }));
             
             // Final safety check - only add if there's a valid gap
             if (fixedObstacles.length === 2 && 
@@ -259,7 +266,8 @@ const Game: React.FC = () => {
     passedObstacleIds, 
     lastObstacleTime,
     currentDifficulty,
-    lastObstacleX
+    lastObstacleX,
+    gameState.gameSpeed
   ]);
   
   // Reset passed obstacles when game resets
@@ -310,7 +318,10 @@ const Game: React.FC = () => {
         window.innerWidth, 
         window.innerHeight, 
         difficulty
-      );
+      ).map(obstacle => ({
+        ...obstacle,
+        speed: obstacle.speed * gameState.gameSpeed // Apply game speed to obstacle speed
+      }));
       
       // Add obstacles to game
       addObstacles(newObstacles);
@@ -329,7 +340,7 @@ const Game: React.FC = () => {
     }, Math.max(1500 - gameState.level * 100, 1000)); // Faster obstacle generation at higher levels
     
     return () => clearInterval(obstacleInterval);
-  }, [gameState.isPlaying, gameState.isPaused, gameState.level, addObstacles, addCoins, physics, generateCoins]);
+  }, [gameState.isPlaying, gameState.isPaused, gameState.level, addObstacles, addCoins, physics, generateCoins, gameState.gameSpeed]);
   
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -343,6 +354,7 @@ const Game: React.FC = () => {
           highScore={gameState.highScore}
           lives={gameState.lives}
           level={gameState.level}
+          gameSpeed={gameState.gameSpeed} // Pass game speed to panel
         />
       )}
       

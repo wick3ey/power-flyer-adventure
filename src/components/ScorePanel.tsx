@@ -1,16 +1,20 @@
 
 import React from 'react';
 import { formatScore } from '../utils/gameUtils';
-import { Coins, Rocket, Heart, TrendingUp } from 'lucide-react';
+import { Coins, Rocket, Heart, TrendingUp, Zap } from 'lucide-react';
 
 interface ScorePanelProps {
   score: number;
   highScore: number;
   lives: number;
   level: number;
+  gameSpeed?: number; // Added game speed prop
 }
 
-const ScorePanel: React.FC<ScorePanelProps> = ({ score, highScore, lives, level }) => {
+const ScorePanel: React.FC<ScorePanelProps> = ({ score, highScore, lives, level, gameSpeed = 1 }) => {
+  // Calculate display percentage for speed
+  const speedPercentage = Math.round((gameSpeed - 1) * 100);
+  
   return (
     <div className="fixed top-4 right-4 left-4 flex justify-between items-center z-20 pointer-events-none">
       <div className="game-panel rounded-full px-4 py-2 flex items-center gap-4 pointer-events-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white border border-blue-300">
@@ -18,6 +22,14 @@ const ScorePanel: React.FC<ScorePanelProps> = ({ score, highScore, lives, level 
           <Rocket className="w-5 h-5 text-yellow-300" />
           <span className="font-medium">MOONSHOT LVL {level}</span>
         </div>
+        
+        {/* Speed indicator */}
+        {gameSpeed > 1 && (
+          <div className="flex items-center gap-1 text-yellow-300">
+            <Zap className="w-4 h-4" />
+            <span className="text-sm">+{speedPercentage}%</span>
+          </div>
+        )}
       </div>
 
       <div className="game-panel rounded-full px-4 py-2 flex items-center gap-4 pointer-events-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white border border-blue-300">
