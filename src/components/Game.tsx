@@ -6,7 +6,7 @@ import GameMenu from './GameMenu';
 import GameControls from './GameControls';
 import ScorePanel from './ScorePanel';
 import { ObstacleType, PowerUpType, generateId, DifficultyLevel } from '../utils/gameUtils';
-import useGameState, { Obstacle } from '../hooks/useGameState';
+import useGameState from '../hooks/useGameState';
 import useGameControls from '../hooks/useGameControls';
 import { useIsMobile } from '../hooks/use-mobile';
 
@@ -128,7 +128,7 @@ const Game: React.FC = () => {
           const topPipeId = generateId();
           const bottomPipeId = generateId();
           
-          const newObstacles: Obstacle[] = [
+          const newObstacles = [
             {
               id: topPipeId,
               type: ObstacleType.STATIC,
@@ -159,10 +159,14 @@ const Game: React.FC = () => {
             addObstacles(newObstacles);
             
             // Generate coins between the obstacles
-            const topPipe = newObstacles[0];
-            const bottomPipe = newObstacles[1];
-            const newCoins = generateCoins(topPipe, bottomPipe, currentDifficulty);
-            addCoins(newCoins);
+            if (newObstacles.length === 2) {
+              const topPipe = newObstacles[0];
+              const bottomPipe = newObstacles[1];
+              const newCoins = generateCoins(topPipe, bottomPipe, currentDifficulty);
+              if (newCoins && newCoins.length > 0) {
+                addCoins(newCoins);
+              }
+            }
             
             setLastObstacleTime(timestamp);
             setLastObstacleX(window.innerWidth); // New obstacles always start at the right edge

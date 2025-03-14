@@ -12,7 +12,7 @@ interface ScorePanelProps {
 
 const ScorePanel: React.FC<ScorePanelProps> = ({ score, highScore, lives, level }) => {
   return (
-    <div className="flex justify-between items-center z-20 pointer-events-none">
+    <div className="flex justify-between items-center w-full z-20 pointer-events-none">
       <div className="bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-4 pointer-events-auto shadow-md">
         <div className="flex items-center gap-1">
           <Star className="w-5 h-5 text-yellow-500" />

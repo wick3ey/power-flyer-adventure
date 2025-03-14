@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Collectible } from '../hooks/useGameState';
@@ -12,73 +11,47 @@ const Coin: React.FC<CoinProps> = ({ coin }) => {
 
   return (
     <motion.div
-      className="absolute pointer-events-none"
+      className="absolute z-10"
       style={{
         left: coin.x,
         top: coin.y,
         width: coin.width,
         height: coin.height,
-        zIndex: 10,
       }}
       animate={{
-        rotate: [0, 360],
         y: [0, -5, 0],
+        rotateY: [0, 180, 360],
       }}
       transition={{
-        rotate: {
-          duration: 3,
-          repeat: Infinity,
-          ease: "linear"
-        },
         y: {
-          duration: 1.5,
           repeat: Infinity,
-          ease: "easeInOut"
-        }
+          duration: 1.5,
+          ease: "easeInOut",
+        },
+        rotateY: {
+          repeat: Infinity,
+          duration: 1.5,
+          ease: "linear",
+        },
       }}
     >
-      {/* New coin design using CSS */}
-      <div className="relative w-full h-full rounded-full bg-[#f7d14c] shadow-[0_0_0_3px_#fff,0_0_0_4px_#000] flex justify-center items-center overflow-hidden">
-        {/* Inner circle border */}
-        <div className="absolute w-[95%] h-[95%] rounded-full border-2 border-black"></div>
+      <div className="w-full h-full relative">
+        {/* Coin outer glow */}
+        <div className="absolute inset-0 rounded-full bg-yellow-300 opacity-30 animate-pulse" 
+             style={{ transform: 'scale(1.2)' }} />
         
-        {/* Right side gradient pattern */}
-        <div className="absolute right-0 w-[12.5%] h-full opacity-80"
-             style={{
-               background: 'repeating-linear-gradient(90deg, transparent, #e6b800 2px, #f7d14c 4px, #f7d14c 6px)'
-             }}
-        ></div>
-        
-        {/* Logo with 3 bars */}
-        <div className="flex flex-col justify-center items-center gap-1 w-[60%]">
-          <div className="w-full h-[10%] bg-white relative shadow"
-               style={{ clipPath: 'polygon(0 0, 100% 0, 95% 100%, 5% 100%)' }}>
-            <div className="absolute inset-0"
-                 style={{
-                   background: 'linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 51%, rgba(255,255,255,0) 100%)'
-                 }}
-            ></div>
-          </div>
-          <div className="w-full h-[10%] bg-white relative shadow ml-1"
-               style={{ clipPath: 'polygon(0 0, 100% 0, 95% 100%, 5% 100%)' }}>
-            <div className="absolute inset-0"
-                 style={{
-                   background: 'linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 51%, rgba(255,255,255,0) 100%)'
-                 }}
-            ></div>
-          </div>
-          <div className="w-full h-[10%] bg-white relative shadow"
-               style={{ clipPath: 'polygon(0 0, 100% 0, 95% 100%, 5% 100%)' }}>
-            <div className="absolute inset-0"
-                 style={{
-                   background: 'linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0) 51%, rgba(255,255,255,0) 100%)'
-                 }}
-            ></div>
-          </div>
+        {/* Coin body */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-300 border-2 border-yellow-600 shadow-lg">
+          {/* Inner coin details */}
+          <div className="absolute inset-2 rounded-full border-4 border-yellow-500/30" />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-yellow-200/80 to-transparent" 
+               style={{ clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0% 100%)' }} />
         </div>
         
-        {/* Glowing effect */}
-        <div className="absolute inset-0 rounded-full bg-yellow-400 opacity-20 blur-sm -z-10 animate-pulse"></div>
+        {/* Coin value */}
+        <div className="absolute inset-0 flex items-center justify-center text-yellow-800 font-bold text-xs">
+          {coin.value}
+        </div>
       </div>
     </motion.div>
   );
