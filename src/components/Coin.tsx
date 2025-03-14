@@ -37,14 +37,30 @@ const Coin: React.FC<CoinProps> = ({ coin }) => {
         }
       }}
     >
-      <img 
-        src="/lovable-uploads/87d0d465-179c-48b8-a9e1-69abbd3176e1.png" 
-        alt="Coin"
-        className="w-full h-full object-contain"
-      />
+      {/* Crypto coin image - dogecoin style */}
+      <div className="relative w-full h-full">
+        <div className="absolute inset-0 rounded-full bg-yellow-400 flex items-center justify-center overflow-hidden">
+          <span className="text-xs font-bold text-yellow-800">
+            MOON
+          </span>
+        </div>
+        
+        {/* Outer ring animation */}
+        <div className="absolute inset-0 rounded-full border-2 border-yellow-300 animate-pulse"></div>
+        
+        {/* Inner $ symbol */}
+        <div className="absolute inset-0 flex items-center justify-center text-yellow-800 font-bold">
+          $
+        </div>
+      </div>
       
       {/* Glowing effect */}
-      <div className="absolute inset-0 rounded-full bg-yellow-400 opacity-20 blur-sm -z-10 animate-pulse"></div>
+      <div className="absolute inset-0 rounded-full bg-yellow-400 opacity-30 blur-md -z-10 animate-pulse"></div>
+      
+      {/* Crypto value text */}
+      <div className="absolute -bottom-5 left-1/2 transform -translate-x-1/2 text-xs font-bold text-white bg-blue-500 px-1 rounded-md shadow-lg">
+        +{coin.value}
+      </div>
     </motion.div>
   );
 };
