@@ -70,8 +70,8 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
   // Show the character's hitbox to help players understand collision area
   const showHitbox = true;
   
-  // Scale for mobile devices
-  const sizeMultiplier = isMobile ? 0.7 : 1;
+  // Scale for mobile devices - made larger
+  const sizeMultiplier = isMobile ? 0.9 : 1.2;
   const characterWidth = character.width * sizeMultiplier;
   const characterHeight = character.height * sizeMultiplier;
   
@@ -90,8 +90,8 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
       variants={movementVariants}
     >
       <div className="relative w-full h-full">
-        {/* Trump Character Container - scaled down to fit game */}
-        <div className="relative w-full h-full scale-[0.6] origin-center">
+        {/* Trump Character Container - made larger with scale-[0.8] instead of scale-[0.6] */}
+        <div className="relative w-full h-full scale-[0.8] origin-center">
           {/* Hair Back */}
           <div className="absolute w-[80%] h-[20%] bg-[#ffcc00] rounded-t-[20px] top-[15%] left-[10%] z-[1] rotate-[5deg]"></div>
           
@@ -109,40 +109,40 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
           
           {/* Face Elements */}
           <div className="absolute w-[70%] h-[60%] top-[25%] left-[15%] z-[5]">
-            {/* Eyebrows */}
-            <div className="absolute w-[15%] h-[4%] bg-[#ffcc00] top-[30%] left-[20%] rounded-[2.5px] -rotate-[10deg]"></div>
-            <div className="absolute w-[15%] h-[4%] bg-[#ffcc00] top-[30%] right-[20%] rounded-[2.5px] rotate-[10deg]"></div>
+            {/* Eyebrows - made thicker */}
+            <div className="absolute w-[15%] h-[5%] bg-[#ffcc00] top-[30%] left-[20%] rounded-[2.5px] -rotate-[10deg]"></div>
+            <div className="absolute w-[15%] h-[5%] bg-[#ffcc00] top-[30%] right-[20%] rounded-[2.5px] rotate-[10deg]"></div>
             
-            {/* Eyes */}
-            <div className="absolute w-[12.5%] h-[6%] bg-white top-[38%] left-[20%] rounded-full border border-gray-400">
+            {/* Eyes - made larger */}
+            <div className="absolute w-[15%] h-[8%] bg-white top-[38%] left-[18%] rounded-full border-2 border-gray-400">
               <div className="absolute w-[40%] h-[83%] bg-[#1c77c3] rounded-full top-[8%] left-[32%]">
                 <div className="absolute w-[40%] h-[40%] bg-black rounded-full top-[30%] left-[30%]"></div>
               </div>
             </div>
-            <div className="absolute w-[12.5%] h-[6%] bg-white top-[38%] right-[20%] rounded-full border border-gray-400">
+            <div className="absolute w-[15%] h-[8%] bg-white top-[38%] right-[18%] rounded-full border-2 border-gray-400">
               <div className="absolute w-[40%] h-[83%] bg-[#1c77c3] rounded-full top-[8%] left-[32%]">
                 <div className="absolute w-[40%] h-[40%] bg-black rounded-full top-[30%] left-[30%]"></div>
               </div>
             </div>
             
-            {/* Nose */}
-            <div className="absolute w-[15%] h-[20%] bg-[#ffdbac] rounded-[15px] top-[43%] left-[42.5%] shadow-md"></div>
+            {/* Nose - made more prominent */}
+            <div className="absolute w-[18%] h-[23%] bg-[#ffdbac] rounded-[15px] top-[43%] left-[41%] shadow-md"></div>
             
-            {/* Mouth */}
-            <div className="absolute w-[30%] h-[12.5%] bg-white top-[70%] left-[35%] rounded-b-[15px] border border-gray-300 overflow-hidden">
+            {/* Mouth - made more distinct */}
+            <div className="absolute w-[35%] h-[15%] bg-white top-[70%] left-[32.5%] rounded-b-[15px] border-2 border-gray-300 overflow-hidden">
               <div className="absolute w-[100%] h-[60%] bg-[#ffccab] rounded-t-[14.5px] bottom-0 left-0"></div>
             </div>
           </div>
           
-          {/* Body */}
+          {/* Body - made more colorful */}
           <div className={`absolute w-[50%] h-[60%] bg-[#14213d] rounded-[25px] bottom-0 left-[25%] z-[1] shadow-lg
                           ${hasSpeedBoost ? 'animate-pulse-soft' : ''}`}></div>
           
-          {/* Shirt */}
-          <div className="absolute w-[25%] h-[40%] bg-white bottom-[10%] left-[37.5%] rounded-t-[10px] z-[2]"></div>
+          {/* Shirt - made brighter */}
+          <div className="absolute w-[25%] h-[40%] bg-white bottom-[10%] left-[37.5%] rounded-t-[10px] z-[2] shadow-sm"></div>
           
-          {/* Tie */}
-          <div className="absolute w-[10%] h-[35%] bg-[#e63946] bottom-[15%] left-[45%] z-[3]" 
+          {/* Tie - made more vibrant */}
+          <div className="absolute w-[12%] h-[35%] bg-[#e63946] bottom-[15%] left-[44%] z-[3] shadow-md" 
                style={{clipPath: "polygon(0 0, 100% 0, 80% 50%, 100% 100%, 50% 85%, 0 100%, 20% 50%)"}}></div>
         </div>
         
@@ -173,7 +173,7 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
             {[1, 2, 3, 4].map((i) => (
               <div 
                 key={i}
-                className={`w-2 h-2 rounded-full ${hasSpeedBoost ? 'bg-blue-400' : 'bg-white'} opacity-${10 - i * 2}`}
+                className={`w-3 h-3 rounded-full ${hasSpeedBoost ? 'bg-blue-400' : 'bg-white'} opacity-${10 - i * 2}`}
                 style={{ 
                   animationDelay: `${i * 0.1}s`,
                   opacity: 0.8 - (i * 0.2),
@@ -193,8 +193,8 @@ const CharacterComponent: React.FC<CharacterProps> = ({ character, activePowerUp
               key={i}
               className="absolute rounded-full bg-white/40"
               style={{
-                width: `${4 - i * 0.5}px`,
-                height: `${4 - i * 0.5}px`,
+                width: `${5 - i * 0.5}px`,
+                height: `${5 - i * 0.5}px`,
                 bottom: `${i * 4}px`,
                 left: `${Math.sin(i * 2) * 8}px`,
                 opacity: 1 - (i * 0.15),
