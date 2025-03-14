@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -28,7 +29,8 @@ const Game = () => {
     updateGameState,
     resetGame,
     addScore,
-    addObstacles
+    addObstacles,
+    setGameState
   } = useGameState();
   
   // Game physics
@@ -255,7 +257,7 @@ const Game = () => {
         }
         
         // Add coins to game state
-        setGameState(prev => ({
+        setGameState((prev) => ({
           ...prev,
           collectibles: [...prev.collectibles, ...coins]
         }));
@@ -390,7 +392,9 @@ const Game = () => {
     lastObstacleTime,
     currentDifficulty,
     lastObstacleX,
-    coinsCollected
+    coinsCollected,
+    gameState.collectibles,
+    setGameState
   ]);
   
   // Reset passed obstacles when game resets
