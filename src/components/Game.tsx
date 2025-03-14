@@ -15,7 +15,7 @@ import LevelSelect from './LevelSelect';
 import Coin from './Coin';
 
 import { generateId } from '../utils/gameUtils';
-import { preloadSounds } from '../utils/soundUtils';
+import { preloadSounds, playCoinSound } from '../utils/soundUtils';
 
 const Game = () => {
   // Game state and controls
@@ -568,6 +568,27 @@ const Game = () => {
         onCollect={handleCoinCollect} 
       />
     ));
+  };
+  
+  // Function to prune coins that have moved off screen
+  const pruneOffscreenCoins = () => {
+    if (!gameState.collectibles || gameState.collectibles.length === 0) return;
+    
+    const updatedCollectibles = gameState.collectibles.filter(coin => {
+      // Keep collected coins (for potential animation)
+      if (coin.isCollected) return false; // Remove collected coins
+      
+      // Remove coins that have gone off the left edge of the screen
+      return coin.x > -100;
+    });
+    
+    // Only update if we actually pruned some coins
+    if (updatedCollectibles.length !== gameState.collectibles.length) {
+      setGameState(prev => ({
+        ...prev,
+        collectibles: updatedCollectibles
+      }));
+    }
   };
   
   return (
