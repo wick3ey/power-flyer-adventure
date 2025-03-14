@@ -100,27 +100,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
       <div className="relative z-30 w-full h-full">
         {/* Character */}
         <Character
-          x={gameState.character.x}
-          y={gameState.character.y}
-          width={gameState.character.width}
-          height={gameState.character.height}
-          isJumping={gameState.character.isJumping}
-          hasShield={gameState.character.hasShield}
-          isHurt={gameState.character.isHurt}
-          rotation={gameState.character.velocityY * 2} // Rotate based on velocity
+          character={gameState.character}
+          activePowerUps={gameState.activePowerUps}
         />
         
         {/* Obstacles */}
         {gameState.obstacles.map(obstacle => (
           <Obstacle
             key={obstacle.id}
-            type={obstacle.type}
-            x={obstacle.x}
-            y={obstacle.y}
-            width={obstacle.width}
-            height={obstacle.height}
-            rotation={obstacle.rotation}
-            isBreaking={obstacle.isBreaking}
+            obstacle={obstacle}
           />
         ))}
         
@@ -128,12 +116,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
         {gameState.powerUps.map(powerUp => (
           <PowerUp
             key={powerUp.id}
-            type={powerUp.type}
-            x={powerUp.x}
-            y={powerUp.y}
-            width={powerUp.width}
-            height={powerUp.height}
-            isCollected={powerUp.isCollected}
+            powerUp={powerUp}
           />
         ))}
         
@@ -141,11 +124,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ gameState }) => {
         {gameState.collectibles.map(collectible => !collectible.isCollected && (
           <Coin
             key={collectible.id}
-            x={collectible.x}
-            y={collectible.y}
-            width={collectible.width}
-            height={collectible.height}
-            value={collectible.value}
+            coin={collectible}
           />
         ))}
         
