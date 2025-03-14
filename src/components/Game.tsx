@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import GameCanvas from './GameCanvas';
@@ -7,9 +8,11 @@ import ScorePanel from './ScorePanel';
 import LevelSelect from './LevelSelect';
 import useGameState from '../hooks/useGameState';
 import useGameControls from '../hooks/useGameControls';
-import useMobile from '../hooks/use-mobile';
+import { useIsMobile } from '../hooks/use-mobile';
+import useGamePhysics from '../hooks/useGamePhysics';
 import { Dialog } from './ui/dialog';
 import { Button } from './ui/button';
+import { toast } from 'sonner';
 
 const Game: React.FC = () => {
   // Game state and controls
