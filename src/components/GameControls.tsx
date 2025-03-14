@@ -24,48 +24,48 @@ const GameControls: React.FC<GameControlsProps> = ({
 }) => {
   const { playJumpSound } = useSoundEffects();
   
-  // Skapa en wrapper-funktion som spelar ljudet och hoppar
+  // Wrapper function that plays sound and jumps
   const handleJump = () => {
-    playJumpSound(); // Spela hoppljud
-    onJump(); // Anropa ursprunglig hoppfunktion
+    playJumpSound(); // Play jump sound
+    onJump(); // Call original jump function
   };
   
   return (
-    <div className="fixed bottom-6 left-0 right-0 flex justify-center items-center gap-4 z-20">
+    <div className="flex justify-center items-center gap-4 z-20">
       {isPlaying ? (
         <>
           {/* Control buttons when game is active */}
           <button 
             onClick={onPause}
-            className="game-icon-button"
+            className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center shadow-lg"
             aria-label={isPaused ? "Resume game" : "Pause game"}
           >
-            {isPaused ? <Play className="w-6 h-6" /> : <Pause className="w-6 h-6" />}
+            {isPaused ? <Play className="w-6 h-6 text-blue-600" /> : <Pause className="w-6 h-6 text-blue-600" />}
           </button>
           
           {isMobile && (
             <button 
               onClick={handleJump}
-              className="game-icon-button w-20 h-20" // Larger jump button for mobile
+              className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center shadow-lg" // Larger jump button for mobile
               aria-label="Jump"
             >
-              <ArrowUp className="w-10 h-10" />
+              <ArrowUp className="w-10 h-10 text-white" />
             </button>
           )}
           
           <button 
             onClick={onReset}
-            className="game-icon-button"
+            className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center shadow-lg"
             aria-label="Reset game"
           >
-            <RefreshCw className="w-6 h-6" />
+            <RefreshCw className="w-6 h-6 text-blue-600" />
           </button>
         </>
       ) : (
         /* Start button when game is not active */
         <button 
           onClick={onStart}
-          className="game-button"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg flex items-center justify-center transition-colors shadow-lg"
           aria-label="Start game"
         >
           <Play className="w-5 h-5 mr-2" />

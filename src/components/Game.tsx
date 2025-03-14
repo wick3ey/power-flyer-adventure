@@ -5,8 +5,8 @@ import GameCanvas from './GameCanvas';
 import GameMenu from './GameMenu';
 import GameControls from './GameControls';
 import ScorePanel from './ScorePanel';
-import { Obstacle, ObstacleType, PowerUpType, generateId, DifficultyLevel } from '../utils/gameUtils';
-import useGameState from '../hooks/useGameState';
+import { ObstacleType, PowerUpType, generateId, DifficultyLevel } from '../utils/gameUtils';
+import useGameState, { Obstacle } from '../hooks/useGameState';
 import useGameControls from '../hooks/useGameControls';
 import { useIsMobile } from '../hooks/use-mobile';
 
@@ -30,17 +30,15 @@ const Game: React.FC = () => {
     generateCoins
   } = useGameState();
   
-  const { 
-    setupKeyboardControls, 
-    setupTouchControls, 
-    cleanupControls 
-  } = useGameControls({
+  const isMobile = useIsMobile();
+  const controls = useGameControls({
     isPlaying: gameState.isPlaying,
     isPaused: gameState.isPaused,
     isGameOver: gameState.isGameOver,
     onJump: jump,
     onPause: pauseGame,
-    onRestart: resetGame,
+    onStart: startGame,
+    onReset: resetGame,
   });
   
   // State variables for obstacle generation
@@ -50,7 +48,6 @@ const Game: React.FC = () => {
   const [lastObstacleX, setLastObstacleX] = useState(0);
   const [passedObstacleIds, setPassedObstacleIds] = useState<string[]>([]);
   const [showMenu, setShowMenu] = useState(true);
-  const isMobile = useIsMobile();
   
   // Reference to animation frame for cleanup
   const animationRef = useRef<number | null>(null);
@@ -59,16 +56,6 @@ const Game: React.FC = () => {
   useEffect(() => {
     initializeLevel(1); // Start with level 1
   }, [initializeLevel]);
-  
-  // Setup and cleanup game controls
-  useEffect(() => {
-    setupKeyboardControls();
-    setupTouchControls();
-    
-    return () => {
-      cleanupControls();
-    };
-  }, [setupKeyboardControls, setupTouchControls, cleanupControls]);
   
   // Main game loop
   useEffect(() => {
@@ -288,8 +275,7 @@ const Game: React.FC = () => {
             transition={{ duration: 0.3 }}
           >
             <GameMenu 
-              gameState={gameState}
-              onPlay={() => {
+              onStart={() => {
                 // Slight delay to avoid immediate jump on mobile
                 if (isMobile) {
                   setTimeout(() => {
@@ -303,8 +289,10 @@ const Game: React.FC = () => {
                   setShowMenu(false);
                 }
               }}
-              onReset={resetGame}
-              isMobile={isMobile}
+              onSelectLevel={() => {}}
+              onShowTutorial={() => {}}
+              onShowSettings={() => {}}
+              highScore={gameState.highScore}
             />
           </motion.div>
         )}
@@ -318,8 +306,6 @@ const Game: React.FC = () => {
             highScore={gameState.highScore}
             lives={gameState.lives}
             level={gameState.level}
-            isPaused={gameState.isPaused}
-            onPause={pauseGame}
           />
         </div>
       )}
@@ -328,9 +314,13 @@ const Game: React.FC = () => {
       {gameState.isPlaying && !showMenu && isMobile && (
         <div className="absolute bottom-6 left-0 right-0 z-40 flex justify-center">
           <GameControls 
+            isPlaying={gameState.isPlaying}
+            isPaused={gameState.isPaused}
             onJump={jump}
             onPause={pauseGame}
-            isPaused={gameState.isPaused}
+            onStart={startGame}
+            onReset={resetGame}
+            isMobile={isMobile}
           />
         </div>
       )}
